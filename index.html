@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>登山留守監控儀表板</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }
+        #map { height: 100vh; width: 100%; }
+        
+        /* 右側資訊面板 */
+        .info-panel {
+            position: absolute; top: 10px; right: 10px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px; border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            width: 220px;
+        }
+        .status-dot {
+            display: inline-block; width: 10px; height: 10px;
+            border-radius: 50%; background: #4CAF50; margin-right: 5px;
+        }
+        h4 { margin: 0 0 10px 0; color: #333; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        p { margin: 5px 0; font-size: 14px; color: #555; }
+        .data-val { font-weight: bold; color: #000; display: block; margin-top: 2px; }
+        
+        button {
+            width: 100%; margin-top: 10px; padding: 8px;
+            background: #0078ff; color: white; border: none;
+            border-radius: 4px; cursor: pointer; font-weight: bold;
+        }
+        button:hover { background: #0056b3; }
+
+        /* 讓手機版面板縮小一點 */
+        @media (max-width: 480px) {
+            .info-panel { width: 160px; padding: 10px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="info-panel">
+        <h4><span class="status-dot"></span>留守監控</h4>
+        <p>最後回報時間：<span class="data-val" id="last-time">載入中...</span></p>
+        <p>目前座標：<span class="data-val" id="last-coord">-</span></p>
+        <p>inReach 訊息：<span class="data-val" id="last-msg">無</span></p>
+        <hr>
+        <button onclick="zoomToCurrent()">追蹤最新位置</button>
+        <p style="font-size: 10px; color: gray; margin-top: 10px;">* 地圖每 5 分鐘自動更新</p>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
+
+    <script>
+        // 1. 初始化地圖
+        const map = L.map('map').setView([23.5, 121], 8);
+
+        // 2. 底圖設定 (預設載入魯地圖)
+        const rudyMap = L.tileLayer('https
