@@ -106,46 +106,48 @@
         // *** 未來請將此處替換為您的 Google Sheets CSV 連結 ***
         const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/edit?usp=sharing"; 
 
-        async function fetchLatestLocation() {
-            try {
-                // 如果目前還沒有 CSV 網址，先顯示模擬資料供您測試
-                let lat, lng, time, msg;
 
-                if (!SHEET_CSV_URL) {
-                    lat = 23.9738;
-                    lng = 121.3456;
-                    time = new Date().toLocaleString('zh-TW');
-                    msg = "模擬測試中 (請設定 Google Sheet)";
-                } else {
-                    // 這裡預留讀取 Google Sheet CSV 的邏輯
-                    const response = await fetch(SHEET_CSV_URL);
-                    const data = await response.text();
-                    const rows = data.split('\n');
-                    const lastRow = rows[rows.length - 1].split(','); 
-                    // 假設格式是: Time, Lat, Lon, Message
-                    time = lastRow[0];
-                    lat = parseFloat(lastRow[1]);
-                    lng = parseFloat(lastRow[2]);
-                    msg = lastRow[3];
-                }
+async function fetchLatestLocation() {
+    try {
+        if (!SHEET_CSV_URL) return;
 
-                const pos = [lat, lng];
-                lastPos = pos;
+        // 讀取 Google Sheet CSV
+        const response = await fetch(SHEET_CSV_URL);
+        const csvData = await response.text();
+        
+        // 解析 CSV (取得最後一行資料)
+        const rows = csvData.trim().split('\n');
+        if (rows.length <= 1) return; // 只有標題列則跳過
 
-                if (currentMarker) {
-                    currentMarker.setLatLng(pos);
-                } else {
-                    currentMarker = L.marker(pos).addTo(map).bindPopup("最後回報點");
-                }
+        const lastRow = rows[rows.length - 1].split(','); 
+        
+        // 假設欄位順序: 0:Time, 1:Lat, 2:Lon, 3:Message
+        const time = lastRow[0];
+        const lat = parseFloat(lastRow[1]);
+        const lng = parseFloat(lastRow[2]);
+        const msg = lastRow[3] || "無訊息";
 
-                document.getElementById('last-time').innerText = time;
-                document.getElementById('last-coord').innerText = `${lat}, ${lng}`;
-                document.getElementById('last-msg').innerText = msg;
+        if (isNaN(lat) || isNaN(lng)) return;
 
-            } catch (error) {
-                console.error('更新座標失敗:', error);
-            }
+        const pos = [lat, lng];
+        lastPos = pos;
+
+        // 更新地圖標記
+        if (currentMarker) {
+            currentMarker.setLatLng(pos);
+        } else {
+            currentMarker = L.marker(pos).addTo(map).bindPopup("最後回報點");
         }
+
+        // 更新面板資訊
+        document.getElementById('last-time').innerText = time;
+        document.getElementById('last-coord').innerText = `${lat}, ${lng}`;
+        document.getElementById('last-msg').innerText = msg;
+
+    } catch (error) {
+        console.error('從 Google Sheets 讀取資料失敗:', error);
+    }
+}
 
         function zoomToCurrent() {
             if (lastPos[0] !== 0) map.setView(lastPos, 16);
@@ -156,4 +158,5 @@
     </script>
 </body>
 </html>
+
 
