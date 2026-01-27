@@ -78,7 +78,7 @@
             attribution: '© OpenStreetMap contributors'
         });
 
-        L.control.layers({"魯地圖": rudyMap, "OSM": osm}).addTo(map);
+        L.control.layers({ "OSM": osm,"魯地圖": rudyMap}).addTo(map);
 
         // 載入 GPX
         const gpxUrl = 'route.gpx'; 
@@ -164,3 +164,4 @@
     </script>
 </body>
 </html>
+
