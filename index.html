@@ -102,7 +102,7 @@
         let historyMarkers = L.layerGroup().addTo(map); 
         let lastPos = [0, 0];
 
-        async function fetchLatestLocation() {
+     async function fetchLatestLocation() {
             try {
                 const response = await fetch(SHEET_CSV_URL);
                 const csvData = await response.text();
@@ -111,9 +111,11 @@
 
                 historyMarkers.clearLayers();
                 let validPointCount = 0;
+                
+                // 找出最後一個有效點的索引，用來判斷誰是「最新」
+                const dataRows = rows.slice(1); // 排除標題列
 
-                rows.forEach((row, index) => {
-                    if (index === 0) return; 
+                dataRows.forEach((row, index) => {
                     const cols = row.split(',');
                     const time = cols[0];
                     const lat = parseFloat(cols[1]);
@@ -123,26 +125,32 @@
                     if (!isNaN(lat) && !isNaN(lng)) {
                         validPointCount++;
                         const pos = [lat, lng];
-                        
-                        // 格式化序號 (例如 01, 02...)
                         const label = validPointCount < 10 ? `0${validPointCount}` : validPointCount;
-
-                        // 使用 DivIcon 顯示序號
-                        const marker = L.marker(pos, {
-                            icon: L.divIcon({
-                                className: 'number-icon',
-                                html: label,
-                                iconSize: [22, 22],
-                                iconAnchor: [11, 11]
-                            })
-                        }).bindPopup(`<b>序號:</b> ${label}<br><b>時間:</b> ${time}<br><b>訊息:</b> ${msg}`);
                         
+                        let marker;
+                        // 判斷是否為最後一筆資料 (最新位置)
+                        if (index === dataRows.length - 1) {
+                            // 使用預設的水滴符號
+                            marker = L.marker(pos); 
+                        } else {
+                            // 使用原本的序號標籤
+                            marker = L.marker(pos, {
+                                icon: L.divIcon({
+                                    className: 'number-icon',
+                                    html: label,
+                                    iconSize: [22, 22],
+                                    iconAnchor: [11, 11]
+                                })
+                            });
+                        }
+
+                        marker.bindPopup(`<b>序號:</b> ${label}<br><b>時間:</b> ${time}<br><b>訊息:</b> ${msg}`);
                         historyMarkers.addLayer(marker);
                         lastPos = pos;
                     }
                 });
 
-                // 更新 UI 與最新標記
+                // 更新 UI
                 if (validPointCount > 0) {
                     const lastRowData = rows[rows.length - 1].split(',');
                     document.getElementById('last-time').innerText = lastRowData[0];
@@ -164,4 +172,5 @@
     </script>
 </body>
 </html>
+
 
