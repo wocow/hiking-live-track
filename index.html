@@ -9,12 +9,12 @@
     
     <style>
         body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }
-        #map { height: 100vh; width: 100%; }
+        #map { height: 100vh; width: 100%; background-color: #eee; } /* 增加預設背景色 */
         
         /* 右側資訊面板 */
         .info-panel {
             position: absolute; top: 10px; right: 10px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             padding: 15px; border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             width: 220px;
@@ -28,13 +28,12 @@
         .data-val { font-weight: bold; color: #000; display: block; margin-top: 2px; }
         
         button {
-            width: 100%; margin-top: 10px; padding: 8px;
+            width: 100%; margin-top: 10px; padding: 10px;
             background: #0078ff; color: white; border: none;
             border-radius: 4px; cursor: pointer; font-weight: bold;
         }
-        button:hover { background: #0056b3; }
+        button:active { background: #0056b3; }
 
-        /* 讓手機版面板縮小一點 */
         @media (max-width: 480px) {
             .info-panel { width: 160px; padding: 10px; font-size: 12px; }
         }
@@ -44,7 +43,7 @@
 
     <div class="info-panel">
         <h4><span class="status-dot"></span>留守監控</h4>
-        <p>最後回報時間：<span class="data-val" id="last-time">載入中...</span></p>
+        <p>最後回報時間：<span class="data-val" id="last-time">等待資料中...</span></p>
         <p>目前座標：<span class="data-val" id="last-coord">-</span></p>
         <p>inReach 訊息：<span class="data-val" id="last-msg">無</span></p>
         <hr>
@@ -58,8 +57,80 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
 
     <script>
-        // 1. 初始化地圖
-        const map = L.map('map').setView([23.5, 121], 8);
+        // 1. 初始化地圖 (先設定一個預設中心點，避免畫面空白)
+        const map = L.map('map').setView([23.9738, 120.9820], 8);
 
-        // 2. 底圖設定 (預設載入魯地圖)
-        const rudyMap = L.tileLayer('https
+        // 2. 底圖設定
+        const rudyMap = L.tileLayer('https://tile.happyman.idv.tw/map/is_rudy/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '魯地圖 (Rudy Map)'
+        }).addTo(map);
+
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        });
+
+        L.control.layers({ "魯地圖": rudyMap, "OpenStreetMap": osm }).addTo(map);
+
+        // 3. 載入 GPX 計畫路徑 (加入錯誤處理，確保不影響底圖顯示)
+        const gpxUrl = 'route.gpx'; 
+        new L.GPX(gpxUrl, {
+            async: true,
+            marker_options: {
+                startIconUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-start.png',
+                endIconUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-end.png',
+                shadowUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-shadow.png'
+            },
+            polyline_options: { color: '#0033ff', weight: 4, opacity: 0.7 }
+        }).on('loaded', function(e) {
+            console.log('GPX 載入成功');
+            map.fitBounds(e.target.getBounds()); 
+        }).on('error', function(e) {
+            console.warn('GPX 檔案載入失敗 (可能是檔案尚未上傳或檔名不符)，僅顯示底圖。');
+        }).addTo(map);
+
+        // 4. 定時抓取最新座標
+        let currentMarker;
+        let lastPos = [0, 0];
+
+        async function fetchLatestLocation() {
+            try {
+                // --- 這裡模擬未來從 Google Sheets 讀取的資料 ---
+                const mockData = {
+                    lat: 23.9738, 
+                    lng: 121.3456, 
+                    time: new Date().toLocaleString('zh-TW'),
+                    message: "系統運行正常"
+                };
+                // ------------------------------------------
+
+                const pos = [mockData.lat, mockData.lng];
+                lastPos = pos;
+
+                if (currentMarker) {
+                    currentMarker.setLatLng(pos);
+                } else {
+                    currentMarker = L.marker(pos).addTo(map).bindPopup("最新位置");
+                }
+
+                document.getElementById('last-time').innerText = mockData.time;
+                document.getElementById('last-coord').innerText = `${mockData.lat.toFixed(5)}, ${mockData.lng.toFixed(5)}`;
+                document.getElementById('last-msg').innerText = mockData.message;
+
+            } catch (error) {
+                console.error('更新位置發生錯誤:', error);
+            }
+        }
+
+        function zoomToCurrent() {
+            if (lastPos[0] !== 0) {
+                map.setView(lastPos, 16);
+            }
+        }
+
+        // 每 5 分鐘自動刷新
+        setInterval(fetchLatestLocation, 300000);
+        fetchLatestLocation();
+    </script>
+</body>
+</html>
