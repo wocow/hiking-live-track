@@ -102,10 +102,6 @@
         let historyMarkers = L.layerGroup().addTo(map); 
         let lastPos = [0, 0];
 
-     let currentMarker; // 宣告在外面，方便追蹤與移除
-        let historyMarkers = L.layerGroup().addTo(map); 
-        let lastPos = [0, 0];
-
         async function fetchLatestLocation() {
             try {
                 const response = await fetch(SHEET_CSV_URL);
@@ -114,15 +110,11 @@
                 if (rows.length <= 1) return; 
 
                 historyMarkers.clearLayers();
-                // 如果已有最新點位標記，先移除，避免重疊
-                if (currentMarker) map.removeLayer(currentMarker);
-
                 let validPointCount = 0;
-                let lastRowData = null;
 
                 rows.forEach((row, index) => {
                     if (index === 0) return; 
-                    const cols = row.split(',').map(item => item.replace(/"/g, ''));
+                    const cols = row.split(',');
                     const time = cols[0];
                     const lat = parseFloat(cols[1]);
                     const lng = parseFloat(cols[2]);
@@ -131,14 +123,12 @@
                     if (!isNaN(lat) && !isNaN(lng)) {
                         validPointCount++;
                         const pos = [lat, lng];
-                        lastPos = pos;
-                        lastRowData = { time, lat, lng, msg };
-
-                        // 格式化序號
+                        
+                        // 格式化序號 (例如 01, 02...)
                         const label = validPointCount < 10 ? `0${validPointCount}` : validPointCount;
 
-                        // 歷史點位：繼續使用橘色數字圓圈
-                        const histMarker = L.marker(pos, {
+                        // 使用 DivIcon 顯示序號
+                        const marker = L.marker(pos, {
                             icon: L.divIcon({
                                 className: 'number-icon',
                                 html: label,
@@ -147,22 +137,17 @@
                             })
                         }).bindPopup(`<b>序號:</b> ${label}<br><b>時間:</b> ${time}<br><b>訊息:</b> ${msg}`);
                         
-                        historyMarkers.addLayer(histMarker);
+                        historyMarkers.addLayer(marker);
+                        lastPos = pos;
                     }
                 });
 
-                // --- 核心修改：在最後一個位置加上藍色小水滴 ---
-                if (lastRowData) {
-                    // 建立藍色預設標記 (小水滴)
-                    currentMarker = L.marker([lastRowData.lat, lastRowData.lng])
-                        .addTo(map)
-                        .bindPopup(`<b>最新位置</b><br>時間: ${lastRowData.time}<br>訊息: ${lastRowData.msg}`)
-                        .openPopup(); // 自動彈出視窗提示
-
-                    // 更新 UI 面板
-                    document.getElementById('last-time').innerText = lastRowData.time;
-                    document.getElementById('last-coord').innerText = `${lastRowData.lat.toFixed(5)}, ${lastRowData.lng.toFixed(5)}`;
-                    document.getElementById('last-msg').innerText = lastRowData.msg;
+                // 更新 UI 與最新標記
+                if (validPointCount > 0) {
+                    const lastRowData = rows[rows.length - 1].split(',');
+                    document.getElementById('last-time').innerText = lastRowData[0];
+                    document.getElementById('last-coord').innerText = `${lastPos[0].toFixed(5)}, ${lastPos[1].toFixed(5)}`;
+                    document.getElementById('last-msg').innerText = lastRowData[3] || "無訊息";
                 }
 
             } catch (error) {
@@ -179,5 +164,3 @@
     </script>
 </body>
 </html>
-
-
