@@ -1,123 +1,197 @@
-// 1. 初始化地圖
-const map = L.map('map').setView([23.5, 121], 7);
-
-// 2. 底圖設定
-const rudyMap = L.tileLayer('https://tile.happyman.idv.tw/map/is_rudy/{z}/{x}/{y}.png', {
-    maxZoom: 18,
-    attribution: '魯地圖 (Rudy Map)'
-}).addTo(map);
-
-const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-});
-
-const baseMaps = {
-    "魯地圖 (Rudy)": rudyMap,
-    "標準地圖 (OSM)": osm
-};
-L.control.layers(baseMaps).addTo(map);
-
-// 3. 載入 GPX 計畫路徑 (檔名需為 route.gpx)
-const gpxUrl = 'route.gpx'; 
-new L.GPX(gpxUrl, {
-    async: true,
-    marker_options: {
-        startIconUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-start.png',
-        endIconUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-end.png',
-        shadowUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-shadow.png'
-    },
-    polyline_options: { color: '#0033ff', weight: 4, opacity: 0.7 }
-}).on('loaded', function(e) {
-    map.fitBounds(e.target.getBounds()); 
-}).on('error', function(e) {
-    console.warn('GPX 載入失敗，請確認檔案是否存在。');
-}).addTo(map);
-
-// 4. 定時抓取所有位置記錄
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
-
-let currentMarker;       // 最新位置的大標記
-let historyPath;         // 歷史軌跡線 (虛線)
-let historyMarkers = L.layerGroup().addTo(map); // 存放所有歷史點的圖層
-let lastPos = [0, 0];
-
-async function fetchLatestLocation() {
-    try {
-        if (!SHEET_CSV_URL) return;
-
-        const response = await fetch(SHEET_CSV_URL);
-        const csvData = await response.text();
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>登山留守監控儀表板</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }
+        #map { height: 100vh; width: 100%; background-color: #f8f9fa; }
         
-        // 分割行並過濾掉空白行
-        const rows = csvData.trim().split('\n').filter(row => row.trim() !== "");
-        if (rows.length <= 1) return; 
+        /* 右側資訊面板 */
+        .info-panel {
+            position: absolute; top: 10px; right: 10px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px; border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            width: 220px;
+        }
+        .status-dot {
+            display: inline-block; width: 10px; height: 10px;
+            border-radius: 50%; background: #4CAF50; margin-right: 5px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        h4 { margin: 0 0 10px 0; color: #333; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        p { margin: 5px 0; font-size: 14px; color: #555; }
+        .data-val { font-weight: bold; color: #000; display: block; margin-top: 2px; word-break: break-all; }
+        
+        button {
+            width: 100%; margin-top: 10px; padding: 10px;
+            background: #0078ff; color: white; border: none;
+            border-radius: 4px; cursor: pointer; font-weight: bold;
+        }
+        button:active { background: #0056b3; }
 
-        const pathCoords = []; 
-        historyMarkers.clearLayers(); 
+        @media (max-width: 480px) {
+            .info-panel { width: 160px; padding: 10px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
 
-        // 遍歷所有行 (跳過第一行標題)
-        rows.forEach((row, index) => {
-            if (index === 0) return;
-            const cols = row.split(',');
-            const time = cols[0];
-            const lat = parseFloat(cols[1]);
-            const lng = parseFloat(cols[2]);
-            const msg = cols[3] || "無訊息";
+    <div class="info-panel">
+        <h4><span class="status-dot"></span>留守監控</h4>
+        <p>最後回報時間：<span class="data-val" id="last-time">載入中...</span></p>
+        <p>目前座標：<span class="data-val" id="last-coord">-</span></p>
+        <p>最新訊息：<span class="data-val" id="last-msg">無</span></p>
+        <hr>
+        <button onclick="zoomToCurrent()">追蹤最新位置</button>
+        <p style="font-size: 10px; color: gray; margin-top: 10px;">* 地圖每 5 分鐘自動刷新</p>
+    </div>
 
-            if (!isNaN(lat) && !isNaN(lng)) {
-                const pos = [lat, lng];
-                pathCoords.push(pos);
+    <div id="map"></div>
 
-                // 在每個回報點畫一個橘色小圓點
-                const marker = L.circleMarker(pos, {
-                    radius: 5,
-                    color: '#ff4400',
-                    fillColor: '#ff4400',
-                    fillOpacity: 0.8
-                }).bindPopup(`<b>時間:</b> ${time}<br><b>訊息:</b> ${msg}`);
-                
-                historyMarkers.addLayer(marker);
-            }
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
+
+    <script>
+        // 1. 初始化地圖
+        const map = L.map('map').setView([23.5, 121], 7);
+
+        // 2. 底圖設定
+        const rudyMap = L.tileLayer('https://tile.happyman.idv.tw/map/is_rudy/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '魯地圖 (Rudy Map)'
+        }).addTo(map);
+
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
         });
 
-        // 更新歷史軌跡線 (虛線)
-        if (historyPath) {
-            historyPath.setLatLngs(pathCoords);
-        } else {
-            historyPath = L.polyline(pathCoords, {
-                color: '#ff4400',
-                weight: 3,
-                opacity: 0.6,
-                dashArray: '5, 10'
-            }).addTo(map);
-        }
+        const baseMaps = {
+            "魯地圖 (Rudy)": rudyMap,
+            "標準地圖 (OSM)": osm
+        };
+        L.control.layers(baseMaps).addTo(map);
 
-        // 處理最新的位置 (最後一筆有效資料)
-        if (pathCoords.length > 0) {
-            lastPos = pathCoords[pathCoords.length - 1];
-            const lastRow = rows[rows.length - 1].split(',');
-            
-            if (currentMarker) {
-                currentMarker.setLatLng(lastPos);
-            } else {
-                currentMarker = L.marker(lastPos).addTo(map).bindPopup("<b>最新位置</b>");
+        // 3. 載入 GPX 計畫路徑 (藍色實線)
+        const gpxUrl = 'route.gpx'; 
+        new L.GPX(gpxUrl, {
+            async: true,
+            marker_options: {
+                startIconUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-start.png',
+                endIconUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-icon-end.png',
+                shadowUrl: 'https://cdn.jsdelivr.net/gh/mpetazzoni/leaflet-gpx@master/pin-shadow.png'
+            },
+            polyline_options: { color: '#0033ff', weight: 4, opacity: 0.6 }
+        }).on('loaded', function(e) {
+            map.fitBounds(e.target.getBounds()); 
+        }).on('error', function(e) {
+            console.warn('GPX 載入失敗，請確認檔案是否存在。');
+        }).addTo(map);
+
+        // 4. 定時抓取歷史與最新位置 (橘色虛線與點)
+        const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
+
+        let currentMarker;       // 最新位置標記
+        let historyPath;         // 實際走過的軌跡線
+        let historyMarkers = L.layerGroup().addTo(map); // 歷史回報點圖層
+        let lastPos = [0, 0];
+
+        async function fetchLatestLocation() {
+            try {
+                if (!SHEET_CSV_URL) return;
+
+                const response = await fetch(SHEET_CSV_URL);
+                const csvData = await response.text();
+                
+                // 解析 CSV 並過濾空行
+                const rows = csvData.trim().split('\n').filter(row => row.trim() !== "");
+                if (rows.length <= 1) return; 
+
+                const pathCoords = [];
+                historyMarkers.clearLayers();
+
+                // 處理每一行數據
+                rows.forEach((row, index) => {
+                    if (index === 0) return; // 跳過標題
+                    const cols = row.split(',');
+                    const time = cols[0];
+                    const lat = parseFloat(cols[1]);
+                    const lng = parseFloat(cols[2]);
+                    const msg = cols[3] || "無訊息";
+
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        const pos = [lat, lng];
+                        pathCoords.push(pos);
+
+                        // 加入歷史點小圓標
+                        const marker = L.circleMarker(pos, {
+                            radius: 4,
+                            color: '#ff4400',
+                            fillColor: '#ff4400',
+                            fillOpacity: 0.8
+                        }).bindPopup(`<b>時間:</b> ${time}<br><b>訊息:</b> ${msg}`);
+                        
+                        historyMarkers.addLayer(marker);
+                    }
+                });
+
+                // 更新實際軌跡線 (橘色虛線)
+                if (historyPath) {
+                    historyPath.setLatLngs(pathCoords);
+                } else {
+                    historyPath = L.polyline(pathCoords, {
+                        color: '#ff4400',
+                        weight: 3,
+                        opacity: 0.8,
+                        dashArray: '5, 10'
+                    }).addTo(map);
+                }
+
+                // 更新最新位置點
+                if (pathCoords.length > 0) {
+                    lastPos = pathCoords[pathCoords.length - 1];
+                    const lastRowData = rows[rows.length - 1].split(',');
+                    
+                    if (currentMarker) {
+                        currentMarker.setLatLng(lastPos);
+                    } else {
+                        currentMarker = L.marker(lastPos).addTo(map).bindPopup("<b>目前位置</b>");
+                    }
+
+                    // 更新 UI 面板
+                    document.getElementById('last-time').innerText = lastRowData[0];
+                    document.getElementById('last-coord').innerText = `${lastPos[0].toFixed(5)}, ${lastPos[1].toFixed(5)}`;
+                    document.getElementById('last-msg').innerText = lastRowData[3] || "無訊息";
+                }
+
+            } catch (error) {
+                console.error('資料更新失敗:', error);
             }
-
-            // 更新資訊面板
-            document.getElementById('last-time').innerText = lastRow[0];
-            document.getElementById('last-coord').innerText = `${lastPos[0].toFixed(5)}, ${lastPos[1].toFixed(5)}`;
-            document.getElementById('last-msg').innerText = lastRow[3] || "無訊息";
         }
 
-    } catch (error) {
-        console.error('從 Google Sheets 讀取資料失敗:', error);
-    }
-}
+        // 點擊按鈕縮放到最新位置
+        function zoomToCurrent() {
+            if (lastPos[0] !== 0) {
+                map.setView(lastPos, 16);
+            }
+        }
 
-function zoomToCurrent() {
-    if (lastPos[0] !== 0) map.setView(lastPos, 16);
-}
+        // 設定定時更新 (5分鐘)
+        setInterval(fetchLatestLocation, 300000);
+        
+        // 初始執行一次
+        fetchLatestLocation();
 
-// 每 5 分鐘自動重新抓取 (300,000 毫秒)
-setInterval(fetchLatestLocation, 300000);
-fetchLatestLocation();
+    </script>
+</body>
+</html>
