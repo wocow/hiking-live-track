@@ -68,18 +68,25 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
 
     <script>
+     // 1. 初始化地圖
         const map = L.map('map').setView([23.5, 121], 7);
 
+        // 2. 定義魯地圖 (暫不加入 map)
         const rudyMap = L.tileLayer('https://tile.happyman.idv.tw/map/is_rudy/{z}/{x}/{y}.png', {
-            maxZoom: 18, attribution: '魯地圖 (Rudy Map)'
-        }).addTo(map);
-
-        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
+            maxZoom: 18, 
+            attribution: '魯地圖 (Rudy Map)'
         });
 
-        L.control.layers({ "OSM": osm,"魯地圖": rudyMap}).addTo(map);
+        // 3. 定義 OSM 並使用 .addTo(map) 設定為預設
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
 
+        // 4. 圖層切換控制項 (OSM 排在第一個)
+        L.control.layers({
+            "OSM": osm, 
+            "魯地圖": rudyMap
+        }).addTo(map);
         // 載入 GPX
         const gpxUrl = 'route.gpx'; 
         new L.GPX(gpxUrl, {
@@ -172,5 +179,6 @@
     </script>
 </body>
 </html>
+
 
 
