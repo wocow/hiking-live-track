@@ -84,6 +84,13 @@
         const gpxUrl = 'route.gpx'; 
         new L.GPX(gpxUrl, {
             async: true,
+            marker_options: {
+        startIconUrl: null, // 設為 null 隱藏起點圖標
+        endIconUrl: null,   // 設為 null 隱藏終點圖標
+        shadowUrl: null,
+        clickable: false
+    },
+            
             polyline_options: { color: '#0033ff', weight: 4, opacity: 0.5 }
         }).on('loaded', function(e) {
             map.fitBounds(e.target.getBounds()); 
@@ -157,3 +164,4 @@
     </script>
 </body>
 </html>
+
