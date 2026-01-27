@@ -107,42 +107,83 @@
         const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
 
 
+let currentMarker;       // 最新位置的標記
+let historyPath;         // 歷史軌跡線
+let historyMarkers = L.layerGroup(); // 存放所有歷史點的圖層組
+let lastPos = [0, 0];
+
 async function fetchLatestLocation() {
     try {
         if (!SHEET_CSV_URL) return;
 
-        // 讀取 Google Sheet CSV
         const response = await fetch(SHEET_CSV_URL);
         const csvData = await response.text();
         
-        // 解析 CSV (取得最後一行資料)
         const rows = csvData.trim().split('\n');
-        if (rows.length <= 1) return; // 只有標題列則跳過
+        if (rows.length <= 1) return; 
 
-        const lastRow = rows[rows.length - 1].split(','); 
-        
-        // 假設欄位順序: 0:Time, 1:Lat, 2:Lon, 3:Message
-        const time = lastRow[0];
-        const lat = parseFloat(lastRow[1]);
-        const lng = parseFloat(lastRow[2]);
-        const msg = lastRow[3] || "無訊息";
+        const pathCoords = []; // 用來存儲所有有效的座標點
+        historyMarkers.clearLayers(); // 每次更新時先清除舊的點（避免重疊）
 
-        if (isNaN(lat) || isNaN(lng)) return;
+        // 遍歷所有行 (跳過第一行標題)
+        rows.forEach((row, index) => {
+            if (index === 0) return;
+            const cols = row.split(',');
+            const lat = parseFloat(cols[1]);
+            const lng = parseFloat(cols[2]);
+            const time = cols[0];
+            const msg = cols[3] || "無訊息";
 
-        const pos = [lat, lng];
-        lastPos = pos;
+            if (!isNaN(lat) && !isNaN(lng)) {
+                const pos = [lat, lng];
+                pathCoords.push(pos);
 
-        // 更新地圖標記
-        if (currentMarker) {
-            currentMarker.setLatLng(pos);
+                // 為每一個記錄點建立一個圓圈標記 (較不遮擋地圖)
+                const marker = L.circleMarker(pos, {
+                    radius: 5,
+                    color: '#ff4400',
+                    fillOpacity: 0.8
+                }).bindPopup(`時間: ${time}<br>訊息: ${msg}`);
+                
+                historyMarkers.addLayer(marker);
+            }
+        });
+
+        historyMarkers.addTo(map);
+
+        // 1. 繪製或更新歷史軌跡線
+        if (historyPath) {
+            historyPath.setLatLngs(pathCoords);
         } else {
-            currentMarker = L.marker(pos).addTo(map).bindPopup("最後回報點");
+            historyPath = L.polyline(pathCoords, {
+                color: '#ff4400',
+                weight: 3,
+                opacity: 0.6,
+                dashArray: '5, 10' // 虛線表示歷史軌跡
+            }).addTo(map);
+        }
+
+        // 2. 處理「最新」的一個點 (最後一行)
+        const lastIdx = rows.length - 1;
+        const lastRow = rows[lastIdx].split(',');
+        const lastLat = parseFloat(lastRow[1]);
+        const lastLng = parseFloat(lastRow[2]);
+        const lastTime = lastRow[0];
+        const lastMsg = lastRow[3] || "無訊息";
+
+        lastPos = [lastLat, lastLng];
+
+        if (currentMarker) {
+            currentMarker.setLatLng(lastPos);
+        } else {
+            // 最新點使用傳統大圖示
+            currentMarker = L.marker(lastPos).addTo(map).bindPopup("目前位置");
         }
 
         // 更新面板資訊
-        document.getElementById('last-time').innerText = time;
-        document.getElementById('last-coord').innerText = `${lat}, ${lng}`;
-        document.getElementById('last-msg').innerText = msg;
+        document.getElementById('last-time').innerText = lastTime;
+        document.getElementById('last-coord').innerText = `${lastLat}, ${lastLng}`;
+        document.getElementById('last-msg').innerText = lastMsg;
 
     } catch (error) {
         console.error('從 Google Sheets 讀取資料失敗:', error);
@@ -158,6 +199,7 @@ async function fetchLatestLocation() {
     </script>
 </body>
 </html>
+
 
 
 
