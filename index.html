@@ -102,10 +102,16 @@
         const map = L.map('map').setView([23.5, 121], 7);
 
         // 2. 定義魯地圖 (暫不加入 map)
-        const rudyMap = L.tileLayer('https://tile.happyman.idv.tw/map/is_rudy/{z}/{x}/{y}.png', {
-            maxZoom: 18, 
-            attribution: '魯地圖 (Rudy Map)'
-        });
+//        const rudyMap = L.tileLayer('https://tile.happyman.idv.tw/map/is_rudy/{z}/{x}/{y}.png', {
+//            maxZoom: 18, 
+ //           attribution: '魯地圖 (Rudy Map)'
+  //      });
+
+        // 修改後建議嘗試的網址:
+const rudyMap = L.tileLayer('https://rs.happyman.idv.tw/map/moi_osm/{z}/{x}/{y}.png', {
+    maxZoom: 18, 
+    attribution: '魯地圖 (Rudy Map)'
+});
 
         // 3. 定義 OSM 並使用 .addTo(map) 設定為預設
         const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -214,3 +220,4 @@
     </script>
 </body>
 </html>
+
