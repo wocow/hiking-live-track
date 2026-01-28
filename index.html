@@ -35,7 +35,7 @@
             border-radius: 4px; cursor: pointer; font-weight: bold;
         }
 
-        /* 序號標籤樣式 */
+        /* 序號標籤樣式 (歷史點) */
         .number-icon {
             background-color: #ff4400;
             border: 2px solid white;
@@ -46,6 +46,36 @@
             line-height: 20px;
             font-size: 11px;
             box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        /* --- 方法 2: 自定義水滴 CSS --- */
+        .latest-pin-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .custom-pin {
+            width: 30px;
+            height: 30px;
+            border-radius: 50% 50% 50% 0;
+            background: #e61e1e; /* 最新位置改為亮紅色 */
+            position: absolute;
+            transform: rotate(-45deg);
+            left: 50%;
+            top: 50%;
+            margin: -30px 0 0 -15px; /* 調整偏移量讓尖端對準 */
+            border: 2px solid #fff;
+            box-shadow: 0 0 8px rgba(0,0,0,0.4);
+            animation: pulse 2s infinite; /* 讓最新點閃爍 */
+        }
+        .custom-pin::after {
+            content: '';
+            width: 10px;
+            height: 10px;
+            margin: 8px 0 0 8px;
+            background: #fff;
+            position: absolute;
+            border-radius: 50%;
         }
 
         @media (max-width: 480px) { .info-panel { width: 150px; } }
@@ -68,7 +98,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
 
     <script>
-     // 1. 初始化地圖
+        // 1. 初始化地圖
         const map = L.map('map').setView([23.5, 121], 7);
 
         // 2. 定義魯地圖 (暫不加入 map)
@@ -82,22 +112,22 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // 4. 圖層切換控制項 (OSM 排在第一個)
+        // 4. 圖層切換控制項
         L.control.layers({
             "OSM": osm, 
             "魯地圖": rudyMap
         }).addTo(map);
+
         // 載入 GPX
         const gpxUrl = 'route.gpx'; 
         new L.GPX(gpxUrl, {
             async: true,
             marker_options: {
-        startIconUrl: null, // 設為 null 隱藏起點圖標
-        endIconUrl: null,   // 設為 null 隱藏終點圖標
-        shadowUrl: null,
-        clickable: false
-    },
-            
+                startIconUrl: null,
+                endIconUrl: null,
+                shadowUrl: null,
+                clickable: false
+            },
             polyline_options: { color: '#0033ff', weight: 4, opacity: 0.5 }
         }).on('loaded', function(e) {
             map.fitBounds(e.target.getBounds()); 
@@ -105,11 +135,10 @@
 
         const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
 
-        let currentMarker;
         let historyMarkers = L.layerGroup().addTo(map); 
         let lastPos = [0, 0];
 
-     async function fetchLatestLocation() {
+        async function fetchLatestLocation() {
             try {
                 const response = await fetch(SHEET_CSV_URL);
                 const csvData = await response.text();
@@ -118,9 +147,7 @@
 
                 historyMarkers.clearLayers();
                 let validPointCount = 0;
-                
-                // 找出最後一個有效點的索引，用來判斷誰是「最新」
-                const dataRows = rows.slice(1); // 排除標題列
+                const dataRows = rows.slice(1); 
 
                 dataRows.forEach((row, index) => {
                     const cols = row.split(',');
@@ -137,10 +164,17 @@
                         let marker;
                         // 判斷是否為最後一筆資料 (最新位置)
                         if (index === dataRows.length - 1) {
-                            // 使用預設的水滴符號
-                            marker = L.marker(pos); 
+                            // 方法 2: 使用 CSS 自定義水滴
+                            marker = L.marker(pos, {
+                                icon: L.divIcon({
+                                    className: 'latest-pin-container',
+                                    html: '<div class="custom-pin"></div>',
+                                    iconSize: [30, 42],
+                                    iconAnchor: [15, 42]
+                                })
+                            });
                         } else {
-                            // 使用原本的序號標籤
+                            // 使用原本的序號標籤 (歷史軌跡點)
                             marker = L.marker(pos, {
                                 icon: L.divIcon({
                                     className: 'number-icon',
@@ -157,9 +191,9 @@
                     }
                 });
 
-                // 更新 UI
+                // 更新 UI 面板
                 if (validPointCount > 0) {
-                    const lastRowData = rows[rows.length - 1].split(',');
+                    const lastRowData = dataRows[dataRows.length - 1].split(',');
                     document.getElementById('last-time').innerText = lastRowData[0];
                     document.getElementById('last-coord').innerText = `${lastPos[0].toFixed(5)}, ${lastPos[1].toFixed(5)}`;
                     document.getElementById('last-msg').innerText = lastRowData[3] || "無訊息";
@@ -174,11 +208,9 @@
             if (lastPos[0] !== 0) map.setView(lastPos, 16);
         }
 
+        // 每 5 分鐘自動刷新
         setInterval(fetchLatestLocation, 300000);
         fetchLatestLocation();
     </script>
 </body>
 </html>
-
-
-
