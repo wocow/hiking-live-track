@@ -97,33 +97,37 @@
 <script>
 // 1. 初始化地圖
 const map = L.map('map').setView([23.5, 121], 7);
-
 // 2. 圖層設定
+// 台灣通用版電子地圖 (NLSC)
+const nlscMap = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
+    maxZoom: 18,
+    attribution: '台灣通用版電子地圖'
+});
+
+// OSM 標準地圖
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
 });
 
-const nlscMap = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
-    maxZoom: 18, 
-    attribution: '台灣通用版電子地圖'
-});
-
-// 【修正重點】使用 Happyman 維護的穩定版魯地圖 HTTPS 伺服器
+// 【重點修正】穩定版魯地圖 HTTPS 鏡像
 const rudyActual = L.tileLayer('https://tiles.happyman.idv.tw/map/rudy/{z}/{x}/{y}.png', {
-    maxZoom: 18, 
+    maxZoom: 18,
     attribution: '魯地圖 (Rudy Map) | Tiles by Happyman',
-    errorTileUrl: 'https://via.placeholder.com/256?text=Tile+Error'
+    opacity: 1.0,
+    zIndex: 10 // 確保魯地圖層級在上方
 });
 
-// 預設將魯地圖加入地圖中
+// 預設載入魯地圖與 OSM (OSM 當底，魯地圖疊加或切換)
 rudyActual.addTo(map);
 
-// 圖層控制選單
-L.control.layers({ 
-    "魯地圖 (推薦)": rudyActual,
-    "台灣通用版電子地圖": nlscMap,
-    "OSM": osm 
-}).addTo(map);
+// 更新控制選單
+const baseMaps = {
+    "魯地圖 (等高線)": rudyActual,
+    "通用電子地圖": nlscMap,
+    "OSM 街道圖": osm
+};
+
+L.control.layers(baseMaps).addTo(map);
 
 // 3. 載入預設 GPX 軌跡 (計劃路線)
 const gpxUrl = '老地方.gpx'; 
