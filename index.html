@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>登山留守監控儀表板</title>
+    <title>登山留守監控儀表板 - 軌跡增強版</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -16,7 +16,7 @@
             background: rgba(255, 255, 255, 0.95);
             padding: 15px; border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            width: 200px;
+            width: 220px;
         }
         .status-dot {
             display: inline-block; width: 10px; height: 10px;
@@ -28,6 +28,7 @@
         h4 { margin: 0 0 10px 0; color: #333; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
         p { margin: 5px 0; font-size: 14px; color: #555; }
         .data-val { font-weight: bold; color: #000; display: block; margin-top: 2px; }
+        .time-warning { color: #e61e1e; font-weight: bold; }
 
         button {
             width: 100%; margin-top: 10px; padding: 10px;
@@ -35,7 +36,7 @@
             border-radius: 4px; cursor: pointer; font-weight: bold;
         }
 
-        /* 試算表歷史軌跡點 (橘色數字圓圈) */
+        /* 歷史軌跡點 (橘色數字圓圈) */
         .number-icon {
             background-color: #ff4400;
             border: 2px solid white;
@@ -62,7 +63,7 @@
             background: #fff; position: absolute; border-radius: 50%;
         }
 
-        /* --- GPX 航點小圓點樣式 --- */
+        /* GPX 航點小圓點樣式 */
         .wpt-dot-icon {
             background-color: #ffffff; 
             border: 2px solid #0078ff; 
@@ -74,7 +75,7 @@
             max-width: 100%; height: auto; margin-top: 5px; border-radius: 4px;
         }
 
-        @media (max-width: 480px) { .info-panel { width: 150px; } }
+        @media (max-width: 480px) { .info-panel { width: 180px; } }
     </style>
 </head>
 <body>
@@ -98,17 +99,23 @@
 const map = L.map('map').setView([23.5, 121], 7);
 
 // 2. 圖層設定
-const rudyMap = L.tileLayer('http://rudy.tile.basecamp.tw/{z}/{x}/{y}.png', {
+const rudyMap = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
+    maxZoom: 18, 
+    attribution: '台灣通用版電子地圖'
+});
+// 註：魯地圖建議使用正式 WMTS 連結，此處暫代為通用版，若你有 Rudy 專用 URL 可替換回原本的
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+}).addTo(map);
+
+const rudyActual = L.tileLayer('http://rudy.tile.basecamp.tw/{z}/{x}/{y}.png', {
     maxZoom: 18, 
     attribution: '魯地圖 (Rudy Map)'
 });
-const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-}).addTo(map);
 
-L.control.layers({ "OSM": osm, "魯地圖": rudyMap }).addTo(map);
+L.control.layers({ "OSM": osm, "魯地圖": rudyActual }).addTo(map);
 
-// 3. 載入 GPX 軌跡
+// 3. 載入預設 GPX 軌跡 (計劃路線)
 const gpxUrl = '台北大縱走.gpx'; 
 
 new L.GPX(gpxUrl, {
@@ -117,31 +124,24 @@ new L.GPX(gpxUrl, {
         startIconUrl: null,
         endIconUrl: null,
         shadowUrl: null,
-        // 我們手動處理點位，不讓外掛自動畫圖標
         wptIconUrls: { '': null }
     },
-    polyline_options: { color: '#0033ff', weight: 4, opacity: 0.5 }
+    polyline_options: { color: '#0033ff', weight: 4, opacity: 0.4 }
 })
 .on('addpoint', function(e) {
-    // 這是最保險的做法：只要 GPX 解析到一個「點」，我們就手動幫它畫個小圓點
     if (e.point_type === 'waypoint') {
-        const marker = e.element; // 這是外掛生成的 Marker 物件
-        
-        // 強制重設圖示為我們的小圓點
+        const marker = e.element;
         marker.setIcon(L.divIcon({
             className: 'wpt-dot-icon',
             iconSize: [8, 8],
             iconAnchor: [4, 4]
         }));
         
-        // 處理彈出內容與圖片
         const name = marker.options.title || "航點";
         const desc = marker.options.desc || "";
         let popupContent = `<b>${name}</b>`;
         const imgMatch = desc.match(/src="([^"]+)"/) || desc.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif))/i);
-        if (imgMatch) {
-            popupContent += `<br><img src="${imgMatch[1]}" class="wpt-popup-img">`;
-        }
+        if (imgMatch) popupContent += `<br><img src="${imgMatch[1]}" class="wpt-popup-img">`;
         marker.bindPopup(popupContent);
     }
 })
@@ -150,10 +150,12 @@ new L.GPX(gpxUrl, {
 })
 .addTo(map);
 
-// 4. 定時抓取試算表位置
+// 4. 定時抓取試算表位置 (回報軌跡)
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
 
 let historyMarkers = L.layerGroup().addTo(map); 
+// 這裡就是動態路徑連線：設定橘色虛線
+let historyLine = L.polyline([], {color: '#ff4400', weight: 3, dashArray: '5, 8', opacity: 0.8}).addTo(map);
 let lastPos = [0, 0];
 
 async function fetchLatestLocation() {
@@ -164,22 +166,24 @@ async function fetchLatestLocation() {
         if (rows.length <= 1) return; 
 
         historyMarkers.clearLayers();
-        let validPointCount = 0;
+        const latlngs = []; // 存放連線座標
         const dataRows = rows.slice(1); 
 
         dataRows.forEach((row, index) => {
-            const cols = row.split(',');
+            // 使用正則表達式解析 CSV，避免訊息內的逗號破壞結構
+            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
             const time = cols[0];
             const lat = parseFloat(cols[1]);
             const lng = parseFloat(cols[2]);
-            const msg = cols[3] || "無訊息";
+            const msg = (cols[3] || "無訊息").replace(/"/g, "");
 
             if (!isNaN(lat) && !isNaN(lng)) {
-                validPointCount++;
                 const pos = [lat, lng];
-                const label = validPointCount < 10 ? `0${validPointCount}` : validPointCount;
+                latlngs.push(pos);
+                const label = (index + 1).toString().padStart(2, '0');
 
                 if (index === dataRows.length - 1) {
+                    // 最新位置標記
                     const latestMarker = L.marker(pos, {
                         icon: L.divIcon({
                             className: 'latest-pin-container',
@@ -187,36 +191,53 @@ async function fetchLatestLocation() {
                             iconSize: [30, 42],
                             iconAnchor: [15, 42]
                         })
-                    });
+                    }).addTo(historyMarkers);
+                    
                     latestMarker.bindPopup(`<b>最新回報</b><br>時間: ${time}<br>訊息: ${msg}`);
-                    historyMarkers.addLayer(latestMarker);
                     lastPos = pos;
+                    updateInfoPanel(time, pos, msg);
                 } else {
-                    const histMarker = L.marker(pos, {
+                    // 歷史位置標記
+                    L.marker(pos, {
                         icon: L.divIcon({
                             className: 'number-icon',
                             html: label,
                             iconSize: [22, 22],
                             iconAnchor: [11, 11]
                         })
-                    });
-                    histMarker.bindPopup(`<b>序號:</b> ${label}<br>時間: ${time}<br>訊息: ${msg}`);
-                    historyMarkers.addLayer(histMarker);
+                    }).addTo(historyMarkers).bindPopup(`<b>序號:</b> ${label}<br>時間: ${time}<br>訊息: ${msg}`);
                 }
             }
         });
 
-        if (validPointCount > 0) {
-            const lastData = dataRows[dataRows.length - 1].split(',');
-            document.getElementById('last-time').innerText = lastData[0];
-            document.getElementById('last-coord').innerText = `${lastPos[0].toFixed(5)}, ${lastPos[1].toFixed(5)}`;
-            document.getElementById('last-msg').innerText = lastData[3] || "無訊息";
-        }
-    } catch (error) { console.error('Update Failed:', error); }
+        // 關鍵功能：更新連線路徑
+        historyLine.setLatLngs(latlngs);
+
+    } catch (error) { console.error('抓取失敗:', error); }
 }
 
-function zoomToCurrent() { if (lastPos[0] !== 0) map.setView(lastPos, 16); }
+// 更新儀表板資訊與時差計算
+function updateInfoPanel(time, pos, msg) {
+    const reportTime = new Date(time.replace(/-/g, '/')); // 相容 Safari
+    const now = new Date();
+    const diffMins = Math.floor((now - reportTime) / 60000);
+    
+    let timeHtml = time;
+    if (!isNaN(diffMins)) {
+        const timeClass = diffMins > 60 ? 'time-warning' : '';
+        timeHtml += ` <span class="${timeClass}">(${diffMins}分鐘前)</span>`;
+    }
 
+    document.getElementById('last-time').innerHTML = timeHtml;
+    document.getElementById('last-coord').innerText = `${pos[0].toFixed(5)}, ${pos[1].toFixed(5)}`;
+    document.getElementById('last-msg').innerText = msg;
+}
+
+function zoomToCurrent() { 
+    if (lastPos[0] !== 0) map.setView(lastPos, 16); 
+}
+
+// 每 5 分鐘自動更新一次
 setInterval(fetchLatestLocation, 300000);
 fetchLatestLocation();
 </script>
