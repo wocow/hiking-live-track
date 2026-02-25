@@ -116,7 +116,7 @@ const rudyActual = L.tileLayer('http://rudy.tile.basecamp.tw/{z}/{x}/{y}.png', {
 L.control.layers({ "OSM": osm, "魯地圖": rudyActual }).addTo(map);
 
 // 3. 載入預設 GPX 軌跡 (計劃路線)
-const gpxUrl = '台北大縱走.gpx'; 
+const gpxUrl = '老地方.gpx'; 
 
 new L.GPX(gpxUrl, {
     async: true,
@@ -243,3 +243,4 @@ fetchLatestLocation();
 </script>
 </body>
 </html>
+
