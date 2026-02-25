@@ -11,7 +11,6 @@
         body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }
         #map { height: 100vh; width: 100%; background-color: #f8f9fa; }
 
-        /* 右側資訊面板 */
         .info-panel {
             position: absolute; top: 10px; right: 10px; z-index: 1000;
             background: rgba(255, 255, 255, 0.95);
@@ -98,19 +97,18 @@
 // 1. 初始化地圖
 const map = L.map('map').setView([23.5, 121], 7);
 
-// 2. 定義底層圖層
+// 2. 圖層設定
 const rudyMap = L.tileLayer('http://rudy.tile.basecamp.tw/{z}/{x}/{y}.png', {
     maxZoom: 18, 
     attribution: '魯地圖 (Rudy Map)'
 });
-
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
 L.control.layers({ "OSM": osm, "魯地圖": rudyMap }).addTo(map);
 
-// 3. 載入 GPX 軌跡並將航點設為小圓點
+// 3. 載入 GPX 軌跡
 const gpxUrl = '台北大縱走.gpx'; 
 
 new L.GPX(gpxUrl, {
@@ -119,39 +117,38 @@ new L.GPX(gpxUrl, {
         startIconUrl: null,
         endIconUrl: null,
         shadowUrl: null,
-        clickable: true,
-        // 設定航點顯示邏輯
-        wptIconUrls: { '': 'dummy' }, // 觸發 pointToLayer
-        pointToLayer: function (feature, latlng) {
-            return L.marker(latlng, {
-                icon: L.divIcon({
-                    className: 'wpt-dot-icon',
-                    iconSize: [8, 8],     // 讓航點變小 (8x8 像素)
-                    iconAnchor: [4, 4]
-                }),
-                title: feature.properties.name || "未命名航點"
-            });
-        }
+        // 我們手動處理點位，不讓外掛自動畫圖標
+        wptIconUrls: { '': null }
     },
     polyline_options: { color: '#0033ff', weight: 4, opacity: 0.5 }
-}).on('loaded', function(e) {
-    const gpx = e.target;
-    map.fitBounds(gpx.getBounds()); 
-
-    // 解析航點內的圖片
-    gpx.getLayers().forEach(layer => {
-        if (layer instanceof L.Marker && layer.options.title) {
-            let popupContent = `<b>航點名稱:</b> ${layer.options.title}`;
-            // 嘗試抓取描述中的圖片網址
-            const desc = layer.options.desc || "";
-            const imgMatch = desc.match(/src="([^"]+)"/) || desc.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif))/i);
-            if (imgMatch) {
-                popupContent += `<br><img src="${imgMatch[1]}" class="wpt-popup-img">`;
-            }
-            layer.bindPopup(popupContent);
+})
+.on('addpoint', function(e) {
+    // 這是最保險的做法：只要 GPX 解析到一個「點」，我們就手動幫它畫個小圓點
+    if (e.point_type === 'waypoint') {
+        const marker = e.element; // 這是外掛生成的 Marker 物件
+        
+        // 強制重設圖示為我們的小圓點
+        marker.setIcon(L.divIcon({
+            className: 'wpt-dot-icon',
+            iconSize: [8, 8],
+            iconAnchor: [4, 4]
+        }));
+        
+        // 處理彈出內容與圖片
+        const name = marker.options.title || "航點";
+        const desc = marker.options.desc || "";
+        let popupContent = `<b>${name}</b>`;
+        const imgMatch = desc.match(/src="([^"]+)"/) || desc.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif))/i);
+        if (imgMatch) {
+            popupContent += `<br><img src="${imgMatch[1]}" class="wpt-popup-img">`;
         }
-    });
-}).addTo(map);
+        marker.bindPopup(popupContent);
+    }
+})
+.on('loaded', function(e) {
+    map.fitBounds(e.target.getBounds()); 
+})
+.addTo(map);
 
 // 4. 定時抓取試算表位置
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
@@ -182,9 +179,8 @@ async function fetchLatestLocation() {
                 const pos = [lat, lng];
                 const label = validPointCount < 10 ? `0${validPointCount}` : validPointCount;
 
-                let marker;
                 if (index === dataRows.length - 1) {
-                    marker = L.marker(pos, {
+                    const latestMarker = L.marker(pos, {
                         icon: L.divIcon({
                             className: 'latest-pin-container',
                             html: '<div class="custom-pin"></div>',
@@ -192,9 +188,11 @@ async function fetchLatestLocation() {
                             iconAnchor: [15, 42]
                         })
                     });
+                    latestMarker.bindPopup(`<b>最新回報</b><br>時間: ${time}<br>訊息: ${msg}`);
+                    historyMarkers.addLayer(latestMarker);
                     lastPos = pos;
                 } else {
-                    marker = L.marker(pos, {
+                    const histMarker = L.marker(pos, {
                         icon: L.divIcon({
                             className: 'number-icon',
                             html: label,
@@ -202,9 +200,9 @@ async function fetchLatestLocation() {
                             iconAnchor: [11, 11]
                         })
                     });
+                    histMarker.bindPopup(`<b>序號:</b> ${label}<br>時間: ${time}<br>訊息: ${msg}`);
+                    historyMarkers.addLayer(histMarker);
                 }
-                marker.bindPopup(`<b>序號:</b> ${label}<br><b>時間:</b> ${time}<br><b>訊息:</b> ${msg}`);
-                historyMarkers.addLayer(marker);
             }
         });
 
