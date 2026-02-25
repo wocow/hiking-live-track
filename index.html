@@ -102,7 +102,11 @@ const map = L.map('map').setView([23.5, 121], 7);
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
 });
-
+// (3) OpenTopoMap - 全球地形圖 (含等高線)
+const openTopo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution: 'Map data: © OSM, SRTM | Map style: © OpenTopoMap'
+});
 // 台灣通用版電子地圖 (NLSC)
 const nlscMap = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
     maxZoom: 18, 
@@ -138,9 +142,10 @@ L.control.layers({
 }).addTo(map);
 // 更新控制選單
 const baseMaps = {
-    "魯地圖 (等高線)": rudyActual,
+    "OpenTopoMap (等高線)": openTopo,
     "通用電子地圖": nlscMap,
     "OSM 街道圖": osm
+    "魯地圖 (等高線)": rudyActual,
 };
 
 L.control.layers(baseMaps).addTo(map);
@@ -273,3 +278,4 @@ fetchLatestLocation();
 </script>
 </body>
 </html>
+
