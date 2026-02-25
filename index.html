@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>登山留守監控儀表板</title>
-    
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
+
     <style>
         body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }
         #map { height: 100vh; width: 100%; background-color: #f8f9fa; }
-        
+
         .info-panel {
             position: absolute; top: 10px; right: 10px; z-index: 1000;
             background: rgba(255, 255, 255, 0.95);
@@ -24,11 +24,11 @@
             animation: pulse 2s infinite;
         }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-        
+
         h4 { margin: 0 0 10px 0; color: #333; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
         p { margin: 5px 0; font-size: 14px; color: #555; }
         .data-val { font-weight: bold; color: #000; display: block; margin-top: 2px; }
-        
+
         button {
             width: 100%; margin-top: 10px; padding: 10px;
             background: #0078ff; color: white; border: none;
@@ -48,7 +48,7 @@
             box-shadow: 0 0 5px rgba(0,0,0,0.5);
         }
 
-        /* --- 方法 2: 自定義水滴 CSS --- */
+        /* 自定義水滴 CSS */
         .latest-pin-container {
             display: flex;
             justify-content: center;
@@ -58,15 +58,15 @@
             width: 30px;
             height: 30px;
             border-radius: 50% 50% 50% 0;
-            background: #e61e1e; /* 最新位置改為亮紅色 */
+            background: #e61e1e;
             position: absolute;
             transform: rotate(-45deg);
             left: 50%;
             top: 50%;
-            margin: -30px 0 0 -15px; /* 調整偏移量讓尖端對準 */
+            margin: -30px 0 0 -15px;
             border: 2px solid #fff;
             box-shadow: 0 0 8px rgba(0,0,0,0.4);
-            animation: pulse 2s infinite; /* 讓最新點閃爍 */
+            animation: pulse 2s infinite;
         }
         .custom-pin::after {
             content: '';
@@ -78,145 +78,173 @@
             border-radius: 50%;
         }
 
+        /* 航點圖片預覽樣式 */
+        .wpt-popup-img {
+            max-width: 100%;
+            height: auto;
+            margin-top: 5px;
+            border-radius: 4px;
+        }
+
         @media (max-width: 480px) { .info-panel { width: 150px; } }
     </style>
 </head>
 <body>
 
-    <div class="info-panel">
-        <h4><span class="status-dot"></span>留守監控</h4>
-        <p>最後回報時間：<span class="data-val" id="last-time">載入中...</span></p>
-        <p>目前座標：<span class="data-val" id="last-coord">-</span></p>
-        <p>最新訊息：<span class="data-val" id="last-msg">無</span></p>
-        <hr>
-        <button onclick="zoomToCurrent()">追蹤最新位置</button>
-    </div>
+<div class="info-panel">
+    <h4><span class="status-dot"></span>留守監控</h4>
+    <p>最後回報時間：<span class="data-val" id="last-time">載入中...</span></p>
+    <p>目前座標：<span class="data-val" id="last-coord">-</span></p>
+    <p>最新訊息：<span class="data-val" id="last-msg">無</span></p>
+    <hr>
+    <button onclick="zoomToCurrent()">追蹤最新位置</button>
+</div>
 
-    <div id="map"></div>
+<div id="map"></div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
 
-    <script>
-        // 1. 初始化地圖
-        const map = L.map('map').setView([23.5, 121], 7);
+<script>
+// 1. 初始化地圖
+const map = L.map('map').setView([23.5, 121], 7);
 
-        // 2. 定義魯地圖 (暫不加入 map)
-        const rudyMap = L.tileLayer('http://rudy.tile.basecamp.tw/{z}/{x}/{y}.png', {
-           maxZoom: 18, 
-      attribution: '魯地圖 (Rudy Map)'
-     });
+// 2. 定義魯地圖
+const rudyMap = L.tileLayer('http://rudy.tile.basecamp.tw/{z}/{x}/{y}.png', {
+    maxZoom: 18, 
+    attribution: '魯地圖 (Rudy Map)'
+});
 
+// 3. 定義 OSM
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
 
-        // 3. 定義 OSM 並使用 .addTo(map) 設定為預設
-        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+// 4. 圖層控制
+L.control.layers({
+    "OSM": osm, 
+    "魯地圖": rudyMap
+}).addTo(map);
 
-        // 4. 圖層切換控制項
-        L.control.layers({
-            "OSM": osm, 
-            "魯地圖": rudyMap
-        }).addTo(map);
+// 5. 載入 GPX 並處理圖片航點
+const gpxUrl = '台北大縱走.gpx'; 
 
-        // 載入 GPX
-        const gpxUrl = '台北大縱走.gpx'; 
-        new L.GPX(gpxUrl, {
-            async: true,
-            marker_options: {
-                startIconUrl: null,
-                endIconUrl: null,
-                shadowUrl: null,
-                clickable: false
-            },
-            polyline_options: { color: '#0033ff', weight: 4, opacity: 0.5 }
-        }).on('loaded', function(e) {
-            map.fitBounds(e.target.getBounds()); 
-        }).addTo(map);
+new L.GPX(gpxUrl, {
+    async: true,
+    marker_options: {
+        startIconUrl: null,
+        endIconUrl: null,
+        shadowUrl: null,
+        clickable: true,
+        // 設定航點(Waypoint)顯示
+        wptIconUrls: {
+            '': 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        }
+    },
+    polyline_options: { color: '#0033ff', weight: 4, opacity: 0.5 }
+}).on('loaded', function(e) {
+    const gpx = e.target;
+    map.fitBounds(gpx.getBounds()); 
 
-        const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
+    // 處理 GPX 內的航點與圖片顯示
+    gpx.getLayers().forEach(layer => {
+        // 檢查是否為航點 (Marker)
+        if (layer instanceof L.Marker && layer.options.title) {
+            let popupContent = `<b>航點名稱:</b> ${layer.options.title}`;
+            
+            // 嘗試從描述 (desc) 中抓取圖片網址 (常見於健行筆記匯出的 GPX)
+            // leaflet-gpx 有時會將連結放在 layer.options.desc 或 metadata 中
+            const desc = layer.options.desc || "";
+            const imgMatch = desc.match(/src="([^"]+)"/) || desc.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif))/i);
+            
+            if (imgMatch) {
+                popupContent += `<br><img src="${imgMatch[1]}" class="wpt-popup-img">`;
+            }
+            
+            layer.bindPopup(popupContent);
+        }
+    });
+}).addTo(map);
 
-        let historyMarkers = L.layerGroup().addTo(map); 
-        let lastPos = [0, 0];
+// 6. 整合試算表動態位置
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
 
-        async function fetchLatestLocation() {
-            try {
-                const response = await fetch(SHEET_CSV_URL);
-                const csvData = await response.text();
-                const rows = csvData.trim().split('\n').filter(row => row.trim() !== "");
-                if (rows.length <= 1) return; 
+let historyMarkers = L.layerGroup().addTo(map); 
+let lastPos = [0, 0];
 
-                historyMarkers.clearLayers();
-                let validPointCount = 0;
-                const dataRows = rows.slice(1); 
+async function fetchLatestLocation() {
+    try {
+        const response = await fetch(SHEET_CSV_URL);
+        const csvData = await response.text();
+        const rows = csvData.trim().split('\n').filter(row => row.trim() !== "");
+        if (rows.length <= 1) return; 
 
-                dataRows.forEach((row, index) => {
-                    const cols = row.split(',');
-                    const time = cols[0];
-                    const lat = parseFloat(cols[1]);
-                    const lng = parseFloat(cols[2]);
-                    const msg = cols[3] || "無訊息";
+        historyMarkers.clearLayers();
+        let validPointCount = 0;
+        const dataRows = rows.slice(1); 
 
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        validPointCount++;
-                        const pos = [lat, lng];
-                        const label = validPointCount < 10 ? `0${validPointCount}` : validPointCount;
-                        
-                        let marker;
-                        // 判斷是否為最後一筆資料 (最新位置)
-                        if (index === dataRows.length - 1) {
-                            // 方法 2: 使用 CSS 自定義水滴
-                            marker = L.marker(pos, {
-                                icon: L.divIcon({
-                                    className: 'latest-pin-container',
-                                    html: '<div class="custom-pin"></div>',
-                                    iconSize: [30, 42],
-                                    iconAnchor: [15, 42]
-                                })
-                            });
-                        } else {
-                            // 使用原本的序號標籤 (歷史軌跡點)
-                            marker = L.marker(pos, {
-                                icon: L.divIcon({
-                                    className: 'number-icon',
-                                    html: label,
-                                    iconSize: [22, 22],
-                                    iconAnchor: [11, 11]
-                                })
-                            });
-                        }
+        dataRows.forEach((row, index) => {
+            // 使用正則拆分以處理可能包含逗號的訊息內容
+            const cols = row.split(',');
+            const time = cols[0];
+            const lat = parseFloat(cols[1]);
+            const lng = parseFloat(cols[2]);
+            const msg = cols[3] || "無訊息";
 
-                        marker.bindPopup(`<b>序號:</b> ${label}<br><b>時間:</b> ${time}<br><b>訊息:</b> ${msg}`);
-                        historyMarkers.addLayer(marker);
-                        lastPos = pos;
-                    }
-                });
+            if (!isNaN(lat) && !isNaN(lng)) {
+                validPointCount++;
+                const pos = [lat, lng];
+                const label = validPointCount < 10 ? `0${validPointCount}` : validPointCount;
 
-                // 更新 UI 面板
-                if (validPointCount > 0) {
-                    const lastRowData = dataRows[dataRows.length - 1].split(',');
-                    document.getElementById('last-time').innerText = lastRowData[0];
-                    document.getElementById('last-coord').innerText = `${lastPos[0].toFixed(5)}, ${lastPos[1].toFixed(5)}`;
-                    document.getElementById('last-msg').innerText = lastRowData[3] || "無訊息";
+                let marker;
+                if (index === dataRows.length - 1) {
+                    // 最新位置：大紅色水滴
+                    marker = L.marker(pos, {
+                        icon: L.divIcon({
+                            className: 'latest-pin-container',
+                            html: '<div class="custom-pin"></div>',
+                            iconSize: [30, 42],
+                            iconAnchor: [15, 42]
+                        })
+                    });
+                    lastPos = pos;
+                } else {
+                    // 歷史位置：數字橘色點
+                    marker = L.marker(pos, {
+                        icon: L.divIcon({
+                            className: 'number-icon',
+                            html: label,
+                            iconSize: [22, 22],
+                            iconAnchor: [11, 11]
+                        })
+                    });
                 }
 
-            } catch (error) {
-                console.error('資料更新失敗:', error);
+                marker.bindPopup(`<b>序號:</b> ${label}<br><b>時間:</b> ${time}<br><b>訊息:</b> ${msg}`);
+                historyMarkers.addLayer(marker);
             }
+        });
+
+        // 更新 UI 面板內容
+        if (validPointCount > 0) {
+            const lastData = dataRows[dataRows.length - 1].split(',');
+            document.getElementById('last-time').innerText = lastData[0];
+            document.getElementById('last-coord').innerText = `${lastPos[0].toFixed(5)}, ${lastPos[1].toFixed(5)}`;
+            document.getElementById('last-msg').innerText = lastData[3] || "無訊息";
         }
 
-        function zoomToCurrent() {
-            if (lastPos[0] !== 0) map.setView(lastPos, 16);
-        }
+    } catch (error) {
+        console.error('資料更新失敗:', error);
+    }
+}
 
-        // 每 5 分鐘自動刷新
-        setInterval(fetchLatestLocation, 300000);
-        fetchLatestLocation();
-    </script>
+function zoomToCurrent() {
+    if (lastPos[0] !== 0) map.setView(lastPos, 16);
+}
+
+// 每 5 分鐘刷新一次
+setInterval(fetchLatestLocation, 300000);
+fetchLatestLocation();
+</script>
 </body>
 </html>
-
-
-
-
-
