@@ -11,7 +11,6 @@
         body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }
         #map { height: 100vh; width: 100%; background-color: #f8f9fa; }
 
-        /* 右側資訊面板 */
         .info-panel {
             position: absolute; top: 10px; right: 10px; z-index: 1000;
             background: rgba(255, 255, 255, 0.95);
@@ -110,7 +109,7 @@ const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 L.control.layers({ "OSM": osm, "魯地圖": rudyMap }).addTo(map);
 
-// 3. 載入 GPX 軌跡並將航點設為小圓點
+// 3. 載入 GPX 軌跡
 const gpxUrl = '台北大縱走.gpx'; 
 
 new L.GPX(gpxUrl, {
@@ -120,16 +119,18 @@ new L.GPX(gpxUrl, {
         endIconUrl: null,
         shadowUrl: null,
         clickable: true,
-        // 設定航點顯示邏輯
-        wptIconUrls: { '': 'dummy' }, // 觸發 pointToLayer
-        pointToLayer: function (feature, latlng) {
+        // 重點：移除所有預設圖示路徑，改用點位函數自訂
+        wptIconUrls: { '': null } 
+    },
+    // 自定義航點樣式，防止出現破圖圖示與 "Marke" 文字
+    pointToLayer: function (feature, latlng) {
+        if (feature.geometry.type === "Point") {
             return L.marker(latlng, {
                 icon: L.divIcon({
                     className: 'wpt-dot-icon',
-                    iconSize: [8, 8],     // 讓航點變小 (8x8 像素)
+                    iconSize: [8, 8],
                     iconAnchor: [4, 4]
-                }),
-                title: feature.properties.name || "未命名航點"
+                })
             });
         }
     },
@@ -138,12 +139,15 @@ new L.GPX(gpxUrl, {
     const gpx = e.target;
     map.fitBounds(gpx.getBounds()); 
 
-    // 解析航點內的圖片
+    // 解析航點內的圖片與名稱
     gpx.getLayers().forEach(layer => {
-        if (layer instanceof L.Marker && layer.options.title) {
-            let popupContent = `<b>航點名稱:</b> ${layer.options.title}`;
-            // 嘗試抓取描述中的圖片網址
-            const desc = layer.options.desc || "";
+        if (layer instanceof L.Marker && layer.feature && layer.feature.properties) {
+            const props = layer.feature.properties;
+            const name = props.name || "未命名航點";
+            const desc = props.desc || "";
+            
+            let popupContent = `<b>${name}</b>`;
+            // 搜尋描述中的圖片網址
             const imgMatch = desc.match(/src="([^"]+)"/) || desc.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif))/i);
             if (imgMatch) {
                 popupContent += `<br><img src="${imgMatch[1]}" class="wpt-popup-img">`;
@@ -182,9 +186,8 @@ async function fetchLatestLocation() {
                 const pos = [lat, lng];
                 const label = validPointCount < 10 ? `0${validPointCount}` : validPointCount;
 
-                let marker;
                 if (index === dataRows.length - 1) {
-                    marker = L.marker(pos, {
+                    const latestMarker = L.marker(pos, {
                         icon: L.divIcon({
                             className: 'latest-pin-container',
                             html: '<div class="custom-pin"></div>',
@@ -192,9 +195,11 @@ async function fetchLatestLocation() {
                             iconAnchor: [15, 42]
                         })
                     });
+                    latestMarker.bindPopup(`<b>最新回報</b><br>時間: ${time}<br>訊息: ${msg}`);
+                    historyMarkers.addLayer(latestMarker);
                     lastPos = pos;
                 } else {
-                    marker = L.marker(pos, {
+                    const histMarker = L.marker(pos, {
                         icon: L.divIcon({
                             className: 'number-icon',
                             html: label,
@@ -202,9 +207,9 @@ async function fetchLatestLocation() {
                             iconAnchor: [11, 11]
                         })
                     });
+                    histMarker.bindPopup(`<b>序號:</b> ${label}<br>時間: ${time}<br>訊息: ${msg}`);
+                    historyMarkers.addLayer(histMarker);
                 }
-                marker.bindPopup(`<b>序號:</b> ${label}<br><b>時間:</b> ${time}<br><b>訊息:</b> ${msg}`);
-                historyMarkers.addLayer(marker);
             }
         });
 
