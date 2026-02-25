@@ -99,21 +99,31 @@
 const map = L.map('map').setView([23.5, 121], 7);
 
 // 2. 圖層設定
-const rudyMap = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+});
+
+const nlscMap = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
     maxZoom: 18, 
     attribution: '台灣通用版電子地圖'
 });
-// 註：魯地圖建議使用正式 WMTS 連結，此處暫代為通用版，若你有 Rudy 專用 URL 可替換回原本的
-const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-}).addTo(map);
 
-const rudyActual = L.tileLayer('http://rudy.tile.basecamp.tw/{z}/{x}/{y}.png', {
+// 【修正重點】使用 Happyman 維護的穩定版魯地圖 HTTPS 伺服器
+const rudyActual = L.tileLayer('https://tiles.happyman.idv.tw/map/rudy/{z}/{x}/{y}.png', {
     maxZoom: 18, 
-    attribution: '魯地圖 (Rudy Map)'
+    attribution: '魯地圖 (Rudy Map) | Tiles by Happyman',
+    errorTileUrl: 'https://via.placeholder.com/256?text=Tile+Error'
 });
 
-L.control.layers({ "OSM": osm, "魯地圖": rudyActual }).addTo(map);
+// 預設將魯地圖加入地圖中
+rudyActual.addTo(map);
+
+// 圖層控制選單
+L.control.layers({ 
+    "魯地圖 (推薦)": rudyActual,
+    "台灣通用版電子地圖": nlscMap,
+    "OSM": osm 
+}).addTo(map);
 
 // 3. 載入預設 GPX 軌跡 (計劃路線)
 const gpxUrl = '老地方.gpx'; 
@@ -154,7 +164,7 @@ new L.GPX(gpxUrl, {
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
 
 let historyMarkers = L.layerGroup().addTo(map); 
-// 這裡就是動態路徑連線：設定橘色虛線
+// 動態路徑連線：設定橘色虛線
 let historyLine = L.polyline([], {color: '#ff4400', weight: 3, dashArray: '5, 8', opacity: 0.8}).addTo(map);
 let lastPos = [0, 0];
 
@@ -243,4 +253,3 @@ fetchLatestLocation();
 </script>
 </body>
 </html>
-
