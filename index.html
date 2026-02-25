@@ -11,6 +11,7 @@
         body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }
         #map { height: 100vh; width: 100%; background-color: #f8f9fa; }
 
+        /* 右側資訊面板 */
         .info-panel {
             position: absolute; top: 10px; right: 10px; z-index: 1000;
             background: rgba(255, 255, 255, 0.95);
@@ -35,7 +36,7 @@
             border-radius: 4px; cursor: pointer; font-weight: bold;
         }
 
-        /* 序號標籤樣式 (歷史點) */
+        /* 試算表歷史軌跡點 (橘色數字圓圈) */
         .number-icon {
             background-color: #ff4400;
             border: 2px solid white;
@@ -48,42 +49,30 @@
             box-shadow: 0 0 5px rgba(0,0,0,0.5);
         }
 
-        /* 自定義水滴 CSS */
-        .latest-pin-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+        /* 最新位置水滴樣式 */
+        .latest-pin-container { display: flex; justify-content: center; align-items: center; }
         .custom-pin {
-            width: 30px;
-            height: 30px;
-            border-radius: 50% 50% 50% 0;
-            background: #e61e1e;
-            position: absolute;
-            transform: rotate(-45deg);
-            left: 50%;
-            top: 50%;
-            margin: -30px 0 0 -15px;
-            border: 2px solid #fff;
-            box-shadow: 0 0 8px rgba(0,0,0,0.4);
+            width: 30px; height: 30px; border-radius: 50% 50% 50% 0;
+            background: #e61e1e; position: absolute; transform: rotate(-45deg);
+            left: 50%; top: 50%; margin: -30px 0 0 -15px;
+            border: 2px solid #fff; box-shadow: 0 0 8px rgba(0,0,0,0.4);
             animation: pulse 2s infinite;
         }
         .custom-pin::after {
-            content: '';
-            width: 10px;
-            height: 10px;
-            margin: 8px 0 0 8px;
-            background: #fff;
-            position: absolute;
-            border-radius: 50%;
+            content: ''; width: 10px; height: 10px; margin: 8px 0 0 8px;
+            background: #fff; position: absolute; border-radius: 50%;
         }
 
-        /* 航點圖片預覽樣式 */
+        /* --- GPX 航點小圓點樣式 --- */
+        .wpt-dot-icon {
+            background-color: #ffffff; 
+            border: 2px solid #0078ff; 
+            border-radius: 50%;
+            box-shadow: 0 0 3px rgba(0,0,0,0.4);
+        }
+
         .wpt-popup-img {
-            max-width: 100%;
-            height: auto;
-            margin-top: 5px;
-            border-radius: 4px;
+            max-width: 100%; height: auto; margin-top: 5px; border-radius: 4px;
         }
 
         @media (max-width: 480px) { .info-panel { width: 150px; } }
@@ -109,24 +98,19 @@
 // 1. 初始化地圖
 const map = L.map('map').setView([23.5, 121], 7);
 
-// 2. 定義魯地圖
+// 2. 定義底層圖層
 const rudyMap = L.tileLayer('http://rudy.tile.basecamp.tw/{z}/{x}/{y}.png', {
     maxZoom: 18, 
     attribution: '魯地圖 (Rudy Map)'
 });
 
-// 3. 定義 OSM
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
-// 4. 圖層控制
-L.control.layers({
-    "OSM": osm, 
-    "魯地圖": rudyMap
-}).addTo(map);
+L.control.layers({ "OSM": osm, "魯地圖": rudyMap }).addTo(map);
 
-// 5. 載入 GPX 並處理圖片航點
+// 3. 載入 GPX 軌跡並將航點設為小圓點
 const gpxUrl = '台北大縱走.gpx'; 
 
 new L.GPX(gpxUrl, {
@@ -136,9 +120,17 @@ new L.GPX(gpxUrl, {
         endIconUrl: null,
         shadowUrl: null,
         clickable: true,
-        // 設定航點(Waypoint)顯示
-        wptIconUrls: {
-            '': 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        // 設定航點顯示邏輯
+        wptIconUrls: { '': 'dummy' }, // 觸發 pointToLayer
+        pointToLayer: function (feature, latlng) {
+            return L.marker(latlng, {
+                icon: L.divIcon({
+                    className: 'wpt-dot-icon',
+                    iconSize: [8, 8],     // 讓航點變小 (8x8 像素)
+                    iconAnchor: [4, 4]
+                }),
+                title: feature.properties.name || "未命名航點"
+            });
         }
     },
     polyline_options: { color: '#0033ff', weight: 4, opacity: 0.5 }
@@ -146,27 +138,22 @@ new L.GPX(gpxUrl, {
     const gpx = e.target;
     map.fitBounds(gpx.getBounds()); 
 
-    // 處理 GPX 內的航點與圖片顯示
+    // 解析航點內的圖片
     gpx.getLayers().forEach(layer => {
-        // 檢查是否為航點 (Marker)
         if (layer instanceof L.Marker && layer.options.title) {
             let popupContent = `<b>航點名稱:</b> ${layer.options.title}`;
-            
-            // 嘗試從描述 (desc) 中抓取圖片網址 (常見於健行筆記匯出的 GPX)
-            // leaflet-gpx 有時會將連結放在 layer.options.desc 或 metadata 中
+            // 嘗試抓取描述中的圖片網址
             const desc = layer.options.desc || "";
             const imgMatch = desc.match(/src="([^"]+)"/) || desc.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif))/i);
-            
             if (imgMatch) {
                 popupContent += `<br><img src="${imgMatch[1]}" class="wpt-popup-img">`;
             }
-            
             layer.bindPopup(popupContent);
         }
     });
 }).addTo(map);
 
-// 6. 整合試算表動態位置
+// 4. 定時抓取試算表位置
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
 
 let historyMarkers = L.layerGroup().addTo(map); 
@@ -184,7 +171,6 @@ async function fetchLatestLocation() {
         const dataRows = rows.slice(1); 
 
         dataRows.forEach((row, index) => {
-            // 使用正則拆分以處理可能包含逗號的訊息內容
             const cols = row.split(',');
             const time = cols[0];
             const lat = parseFloat(cols[1]);
@@ -198,7 +184,6 @@ async function fetchLatestLocation() {
 
                 let marker;
                 if (index === dataRows.length - 1) {
-                    // 最新位置：大紅色水滴
                     marker = L.marker(pos, {
                         icon: L.divIcon({
                             className: 'latest-pin-container',
@@ -209,7 +194,6 @@ async function fetchLatestLocation() {
                     });
                     lastPos = pos;
                 } else {
-                    // 歷史位置：數字橘色點
                     marker = L.marker(pos, {
                         icon: L.divIcon({
                             className: 'number-icon',
@@ -219,30 +203,22 @@ async function fetchLatestLocation() {
                         })
                     });
                 }
-
                 marker.bindPopup(`<b>序號:</b> ${label}<br><b>時間:</b> ${time}<br><b>訊息:</b> ${msg}`);
                 historyMarkers.addLayer(marker);
             }
         });
 
-        // 更新 UI 面板內容
         if (validPointCount > 0) {
             const lastData = dataRows[dataRows.length - 1].split(',');
             document.getElementById('last-time').innerText = lastData[0];
             document.getElementById('last-coord').innerText = `${lastPos[0].toFixed(5)}, ${lastPos[1].toFixed(5)}`;
             document.getElementById('last-msg').innerText = lastData[3] || "無訊息";
         }
-
-    } catch (error) {
-        console.error('資料更新失敗:', error);
-    }
+    } catch (error) { console.error('Update Failed:', error); }
 }
 
-function zoomToCurrent() {
-    if (lastPos[0] !== 0) map.setView(lastPos, 16);
-}
+function zoomToCurrent() { if (lastPos[0] !== 0) map.setView(lastPos, 16); }
 
-// 每 5 分鐘刷新一次
 setInterval(fetchLatestLocation, 300000);
 fetchLatestLocation();
 </script>
