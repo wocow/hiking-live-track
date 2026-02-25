@@ -1,92 +1,92 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>登山留守監控儀表板 - 軌跡增強版</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>登山留守監控儀表板 - 軌跡增強版</title>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <style>
-        body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }
-        #map { height: 100vh; width: 100%; background-color: #f8f9fa; }
+<style>
+body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }
+#map { height: 100vh; width: 100%; background-color: #f8f9fa; }
 
-        .info-panel {
-            position: absolute; top: 10px; right: 10px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 15px; border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            width: 220px;
-        }
-        .status-dot {
-            display: inline-block; width: 10px; height: 10px;
-            border-radius: 50%; background: #4CAF50; margin-right: 5px;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+.info-panel {
+position: absolute; top: 10px; right: 10px; z-index: 1000;
+background: rgba(255, 255, 255, 0.95);
+padding: 15px; border-radius: 8px;
+box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+width: 220px;
+}
+.status-dot {
+display: inline-block; width: 10px; height: 10px;
+border-radius: 50%; background: #4CAF50; margin-right: 5px;
+animation: pulse 2s infinite;
+}
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-        h4 { margin: 0 0 10px 0; color: #333; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-        p { margin: 5px 0; font-size: 14px; color: #555; }
-        .data-val { font-weight: bold; color: #000; display: block; margin-top: 2px; }
-        .time-warning { color: #e61e1e; font-weight: bold; }
+h4 { margin: 0 0 10px 0; color: #333; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+p { margin: 5px 0; font-size: 14px; color: #555; }
+.data-val { font-weight: bold; color: #000; display: block; margin-top: 2px; }
+.time-warning { color: #e61e1e; font-weight: bold; }
 
-        button {
-            width: 100%; margin-top: 10px; padding: 10px;
-            background: #0078ff; color: white; border: none;
-            border-radius: 4px; cursor: pointer; font-weight: bold;
-        }
+button {
+width: 100%; margin-top: 10px; padding: 10px;
+background: #0078ff; color: white; border: none;
+border-radius: 4px; cursor: pointer; font-weight: bold;
+}
 
-        /* 歷史軌跡點 (橘色數字圓圈) */
-        .number-icon {
-            background-color: #ff4400;
-            border: 2px solid white;
-            border-radius: 50%;
-            color: white;
-            font-weight: bold;
-            text-align: center;
-            line-height: 20px;
-            font-size: 11px;
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
-        }
+/* 歷史軌跡點 (橘色數字圓圈) */
+.number-icon {
+background-color: #ff4400;
+border: 2px solid white;
+border-radius: 50%;
+color: white;
+font-weight: bold;
+text-align: center;
+line-height: 20px;
+font-size: 11px;
+box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
 
-        /* 最新位置水滴樣式 */
-        .latest-pin-container { display: flex; justify-content: center; align-items: center; }
-        .custom-pin {
-            width: 30px; height: 30px; border-radius: 50% 50% 50% 0;
-            background: #e61e1e; position: absolute; transform: rotate(-45deg);
-            left: 50%; top: 50%; margin: -30px 0 0 -15px;
-            border: 2px solid #fff; box-shadow: 0 0 8px rgba(0,0,0,0.4);
-            animation: pulse 2s infinite;
-        }
-        .custom-pin::after {
-            content: ''; width: 10px; height: 10px; margin: 8px 0 0 8px;
-            background: #fff; position: absolute; border-radius: 50%;
-        }
+/* 最新位置水滴樣式 */
+.latest-pin-container { display: flex; justify-content: center; align-items: center; }
+.custom-pin {
+width: 30px; height: 30px; border-radius: 50% 50% 50% 0;
+background: #e61e1e; position: absolute; transform: rotate(-45deg);
+left: 50%; top: 50%; margin: -30px 0 0 -15px;
+border: 2px solid #fff; box-shadow: 0 0 8px rgba(0,0,0,0.4);
+animation: pulse 2s infinite;
+}
+.custom-pin::after {
+content: ''; width: 10px; height: 10px; margin: 8px 0 0 8px;
+background: #fff; position: absolute; border-radius: 50%;
+}
 
-        /* GPX 航點小圓點樣式 */
-        .wpt-dot-icon {
-            background-color: #ffffff; 
-            border: 2px solid #0078ff; 
-            border-radius: 50%;
-            box-shadow: 0 0 3px rgba(0,0,0,0.4);
-        }
+/* GPX 航點小圓點樣式 */
+.wpt-dot-icon {
+background-color: #ffffff; 
+border: 2px solid #0078ff; 
+border-radius: 50%;
+box-shadow: 0 0 3px rgba(0,0,0,0.4);
+}
 
-        .wpt-popup-img {
-            max-width: 100%; height: auto; margin-top: 5px; border-radius: 4px;
-        }
+.wpt-popup-img {
+max-width: 100%; height: auto; margin-top: 5px; border-radius: 4px;
+}
 
-        @media (max-width: 480px) { .info-panel { width: 180px; } }
-    </style>
+@media (max-width: 480px) { .info-panel { width: 180px; } }
+</style>
 </head>
 <body>
 
 <div class="info-panel">
-    <h4><span class="status-dot"></span>留守監控</h4>
-    <p>最後回報時間：<span class="data-val" id="last-time">載入中...</span></p>
-    <p>目前座標：<span class="data-val" id="last-coord">-</span></p>
-    <p>最新訊息：<span class="data-val" id="last-msg">無</span></p>
-    <hr>
-    <button onclick="zoomToCurrent()">追蹤最新位置</button>
+<h4><span class="status-dot"></span>留守監控</h4>
+<p>最後回報時間：<span class="data-val" id="last-time">載入中...</span></p>
+<p>目前座標：<span class="data-val" id="last-coord">-</span></p>
+<p>最新訊息：<span class="data-val" id="last-msg">無</span></p>
+<hr>
+<button onclick="zoomToCurrent()">追蹤最新位置</button>
 </div>
 
 <div id="map"></div>
@@ -99,33 +99,49 @@
 const map = L.map('map').setView([23.5, 121], 7);
 
 // 2. 圖層設定
-// (1) OSM 標準地圖
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
 });
 
-// (2) 國土測繪中心 - 台灣通用電子地圖 (最穩定)
+// 台灣通用版電子地圖 (NLSC)
 const nlscMap = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
+    maxZoom: 18, 
     maxZoom: 18,
-    attribution: '© 內政部國土測繪中心'
+attribution: '台灣通用版電子地圖'
 });
 
-// (3) OpenTopoMap - 全球地形圖 (含等高線)
-const openTopo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-    maxZoom: 17,
-    attribution: 'Map data: © OSM, SRTM | Map style: © OpenTopoMap'
+// 【修正重點】使用 Happyman 維護的穩定版魯地圖 HTTPS 伺服器
+// OSM 標準地圖
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
 });
 
-// 預設載入國土測繪中心地圖 (因為最穩定且適合台灣山區)
+// 【重點修正】穩定版魯地圖 HTTPS 鏡像
+const rudyActual = L.tileLayer('https://tiles.happyman.idv.tw/map/rudy/{z}/{x}/{y}.png', {
+    maxZoom: 18, 
+    maxZoom: 18,
+attribution: '魯地圖 (Rudy Map) | Tiles by Happyman',
+    errorTileUrl: 'https://via.placeholder.com/256?text=Tile+Error'
+    opacity: 1.0,
+    zIndex: 10 // 確保魯地圖層級在上方
+});
+
+// 預設將魯地圖加入地圖中
+// 預設載入魯地圖與 OSM (OSM 當底，魯地圖疊加或切換)
 nlscMap.addTo(map);
 
 // 圖層控制選單
 L.control.layers({ 
-    "國土測繪中心 (台灣通用)": nlscMap,
-    "OpenTopoMap (等高線)": openTopo,
-    "OSM 標準街道圖": osm 
+    "魯地圖 (推薦)": rudyActual,
+    "台灣通用版電子地圖": nlscMap,
+    "OSM": osm 
 }).addTo(map);
-
+// 更新控制選單
+const baseMaps = {
+    "魯地圖 (等高線)": rudyActual,
+    "通用電子地圖": nlscMap,
+    "OSM 街道圖": osm
+};
 
 L.control.layers(baseMaps).addTo(map);
 
@@ -133,34 +149,34 @@ L.control.layers(baseMaps).addTo(map);
 const gpxUrl = '老地方.gpx'; 
 
 new L.GPX(gpxUrl, {
-    async: true,
-    marker_options: {
-        startIconUrl: null,
-        endIconUrl: null,
-        shadowUrl: null,
-        wptIconUrls: { '': null }
-    },
-    polyline_options: { color: '#0033ff', weight: 4, opacity: 0.4 }
+async: true,
+marker_options: {
+startIconUrl: null,
+endIconUrl: null,
+shadowUrl: null,
+wptIconUrls: { '': null }
+},
+polyline_options: { color: '#0033ff', weight: 4, opacity: 0.4 }
 })
 .on('addpoint', function(e) {
-    if (e.point_type === 'waypoint') {
-        const marker = e.element;
-        marker.setIcon(L.divIcon({
-            className: 'wpt-dot-icon',
-            iconSize: [8, 8],
-            iconAnchor: [4, 4]
-        }));
-        
-        const name = marker.options.title || "航點";
-        const desc = marker.options.desc || "";
-        let popupContent = `<b>${name}</b>`;
-        const imgMatch = desc.match(/src="([^"]+)"/) || desc.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif))/i);
-        if (imgMatch) popupContent += `<br><img src="${imgMatch[1]}" class="wpt-popup-img">`;
-        marker.bindPopup(popupContent);
-    }
+if (e.point_type === 'waypoint') {
+const marker = e.element;
+marker.setIcon(L.divIcon({
+className: 'wpt-dot-icon',
+iconSize: [8, 8],
+iconAnchor: [4, 4]
+}));
+
+const name = marker.options.title || "航點";
+const desc = marker.options.desc || "";
+let popupContent = `<b>${name}</b>`;
+const imgMatch = desc.match(/src="([^"]+)"/) || desc.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif))/i);
+if (imgMatch) popupContent += `<br><img src="${imgMatch[1]}" class="wpt-popup-img">`;
+marker.bindPopup(popupContent);
+}
 })
 .on('loaded', function(e) {
-    map.fitBounds(e.target.getBounds()); 
+map.fitBounds(e.target.getBounds()); 
 })
 .addTo(map);
 
@@ -173,82 +189,82 @@ let historyLine = L.polyline([], {color: '#ff4400', weight: 3, dashArray: '5, 8'
 let lastPos = [0, 0];
 
 async function fetchLatestLocation() {
-    try {
-        const response = await fetch(SHEET_CSV_URL);
-        const csvData = await response.text();
-        const rows = csvData.trim().split('\n').filter(row => row.trim() !== "");
-        if (rows.length <= 1) return; 
+try {
+const response = await fetch(SHEET_CSV_URL);
+const csvData = await response.text();
+const rows = csvData.trim().split('\n').filter(row => row.trim() !== "");
+if (rows.length <= 1) return; 
 
-        historyMarkers.clearLayers();
-        const latlngs = []; // 存放連線座標
-        const dataRows = rows.slice(1); 
+historyMarkers.clearLayers();
+const latlngs = []; // 存放連線座標
+const dataRows = rows.slice(1); 
 
-        dataRows.forEach((row, index) => {
-            // 使用正則表達式解析 CSV，避免訊息內的逗號破壞結構
-            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-            const time = cols[0];
-            const lat = parseFloat(cols[1]);
-            const lng = parseFloat(cols[2]);
-            const msg = (cols[3] || "無訊息").replace(/"/g, "");
+dataRows.forEach((row, index) => {
+// 使用正則表達式解析 CSV，避免訊息內的逗號破壞結構
+const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+const time = cols[0];
+const lat = parseFloat(cols[1]);
+const lng = parseFloat(cols[2]);
+const msg = (cols[3] || "無訊息").replace(/"/g, "");
 
-            if (!isNaN(lat) && !isNaN(lng)) {
-                const pos = [lat, lng];
-                latlngs.push(pos);
-                const label = (index + 1).toString().padStart(2, '0');
+if (!isNaN(lat) && !isNaN(lng)) {
+const pos = [lat, lng];
+latlngs.push(pos);
+const label = (index + 1).toString().padStart(2, '0');
 
-                if (index === dataRows.length - 1) {
-                    // 最新位置標記
-                    const latestMarker = L.marker(pos, {
-                        icon: L.divIcon({
-                            className: 'latest-pin-container',
-                            html: '<div class="custom-pin"></div>',
-                            iconSize: [30, 42],
-                            iconAnchor: [15, 42]
-                        })
-                    }).addTo(historyMarkers);
-                    
-                    latestMarker.bindPopup(`<b>最新回報</b><br>時間: ${time}<br>訊息: ${msg}`);
-                    lastPos = pos;
-                    updateInfoPanel(time, pos, msg);
-                } else {
-                    // 歷史位置標記
-                    L.marker(pos, {
-                        icon: L.divIcon({
-                            className: 'number-icon',
-                            html: label,
-                            iconSize: [22, 22],
-                            iconAnchor: [11, 11]
-                        })
-                    }).addTo(historyMarkers).bindPopup(`<b>序號:</b> ${label}<br>時間: ${time}<br>訊息: ${msg}`);
-                }
-            }
-        });
+if (index === dataRows.length - 1) {
+// 最新位置標記
+const latestMarker = L.marker(pos, {
+icon: L.divIcon({
+className: 'latest-pin-container',
+html: '<div class="custom-pin"></div>',
+iconSize: [30, 42],
+iconAnchor: [15, 42]
+})
+}).addTo(historyMarkers);
 
-        // 關鍵功能：更新連線路徑
-        historyLine.setLatLngs(latlngs);
+latestMarker.bindPopup(`<b>最新回報</b><br>時間: ${time}<br>訊息: ${msg}`);
+lastPos = pos;
+updateInfoPanel(time, pos, msg);
+} else {
+// 歷史位置標記
+L.marker(pos, {
+icon: L.divIcon({
+className: 'number-icon',
+html: label,
+iconSize: [22, 22],
+iconAnchor: [11, 11]
+})
+}).addTo(historyMarkers).bindPopup(`<b>序號:</b> ${label}<br>時間: ${time}<br>訊息: ${msg}`);
+}
+}
+});
 
-    } catch (error) { console.error('抓取失敗:', error); }
+// 關鍵功能：更新連線路徑
+historyLine.setLatLngs(latlngs);
+
+} catch (error) { console.error('抓取失敗:', error); }
 }
 
 // 更新儀表板資訊與時差計算
 function updateInfoPanel(time, pos, msg) {
-    const reportTime = new Date(time.replace(/-/g, '/')); // 相容 Safari
-    const now = new Date();
-    const diffMins = Math.floor((now - reportTime) / 60000);
-    
-    let timeHtml = time;
-    if (!isNaN(diffMins)) {
-        const timeClass = diffMins > 60 ? 'time-warning' : '';
-        timeHtml += ` <span class="${timeClass}">(${diffMins}分鐘前)</span>`;
-    }
+const reportTime = new Date(time.replace(/-/g, '/')); // 相容 Safari
+const now = new Date();
+const diffMins = Math.floor((now - reportTime) / 60000);
 
-    document.getElementById('last-time').innerHTML = timeHtml;
-    document.getElementById('last-coord').innerText = `${pos[0].toFixed(5)}, ${pos[1].toFixed(5)}`;
-    document.getElementById('last-msg').innerText = msg;
+let timeHtml = time;
+if (!isNaN(diffMins)) {
+const timeClass = diffMins > 60 ? 'time-warning' : '';
+timeHtml += ` <span class="${timeClass}">(${diffMins}分鐘前)</span>`;
+}
+
+document.getElementById('last-time').innerHTML = timeHtml;
+document.getElementById('last-coord').innerText = `${pos[0].toFixed(5)}, ${pos[1].toFixed(5)}`;
+document.getElementById('last-msg').innerText = msg;
 }
 
 function zoomToCurrent() { 
-    if (lastPos[0] !== 0) map.setView(lastPos, 16); 
+if (lastPos[0] !== 0) map.setView(lastPos, 16); 
 }
 
 // 每 5 分鐘自動更新一次
@@ -257,4 +273,3 @@ fetchLatestLocation();
 </script>
 </body>
 </html>
-
