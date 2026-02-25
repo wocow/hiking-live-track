@@ -97,35 +97,35 @@
 <script>
 // 1. 初始化地圖
 const map = L.map('map').setView([23.5, 121], 7);
-// 2. 圖層設定
-// 台灣通用版電子地圖 (NLSC)
-const nlscMap = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
-    maxZoom: 18,
-    attribution: '台灣通用版電子地圖'
-});
 
-// OSM 標準地圖
+// 2. 圖層設定
+// (1) OSM 標準地圖
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
 });
 
-// 【重點修正】穩定版魯地圖 HTTPS 鏡像
-const rudyActual = L.tileLayer('https://tiles.happyman.idv.tw/map/rudy/{z}/{x}/{y}.png', {
+// (2) 國土測繪中心 - 台灣通用電子地圖 (最穩定)
+const nlscMap = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
     maxZoom: 18,
-    attribution: '魯地圖 (Rudy Map) | Tiles by Happyman',
-    opacity: 1.0,
-    zIndex: 10 // 確保魯地圖層級在上方
+    attribution: '© 內政部國土測繪中心'
 });
 
-// 預設載入魯地圖與 OSM (OSM 當底，魯地圖疊加或切換)
-rudyActual.addTo(map);
+// (3) OpenTopoMap - 全球地形圖 (含等高線)
+const openTopo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution: 'Map data: © OSM, SRTM | Map style: © OpenTopoMap'
+});
 
-// 更新控制選單
-const baseMaps = {
-    "魯地圖 (等高線)": rudyActual,
-    "通用電子地圖": nlscMap,
-    "OSM 街道圖": osm
-};
+// 預設載入國土測繪中心地圖 (因為最穩定且適合台灣山區)
+nlscMap.addTo(map);
+
+// 圖層控制選單
+L.control.layers({ 
+    "國土測繪中心 (台灣通用)": nlscMap,
+    "OpenTopoMap (等高線)": openTopo,
+    "OSM 標準街道圖": osm 
+}).addTo(map);
+
 
 L.control.layers(baseMaps).addTo(map);
 
@@ -257,3 +257,4 @@ fetchLatestLocation();
 </script>
 </body>
 </html>
+
