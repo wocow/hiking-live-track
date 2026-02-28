@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>留守系統 - 管理後台</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 500px; margin-bottom: 20px; }
+        h2 { color: #333; margin-top: 0; }
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-upload { background: #0078ff; color: white; }
+        .btn-danger { background: #e61e1e; color: white; margin-top: 10px; }
+        .status-msg { margin-top: 10px; font-size: 14px; }
+        select { width: 100%; padding: 8px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>1. 航跡 (GPX) 管理</h2>
+        <p>目前使用的 GPX：<strong id="current-gpx">台北大縱走.gpx</strong></p>
+        
+        <label>選擇已有軌跡：</label>
+        <select id="gpx-list" onchange="changeGpx(this.value)">
+            <option value="台北大縱走.gpx">台北大縱走.gpx</option>
+            <option value="玉山主峰.gpx">玉山主峰.gpx</option>
+        </select>
+
+        <hr>
+        <label>上傳新 GPX：</label><br><br>
+        <input type="file" id="gpx-file" accept=".gpx">
+        <button class="btn btn-upload" onclick="uploadGpx()">確認上傳</button>
+        <div id="upload-status" class="status-msg"></div>
+    </div>
+
+    <div class="card">
+        <h2>2. 數據管理</h2>
+        <p>此動作將會清空 Google 試算表內「所有」的回報紀錄。</p>
+        <button class="btn btn-danger" onclick="clearSheet()">一鍵清空回報資料</button>
+        <div id="sheet-status" class="status-msg"></div>
+    </div>
+
+<script>
+    // 設定你的 GAS Web App URL
+    const GAS_URL = '你的_GAS_部署網址';
+
+    // 1. 切換 GPX (此處範例改寫 localStorage，讓監控頁面讀取)
+    function changeGpx(val) {
+        localStorage.setItem('selectedGPX', val);
+        document.getElementById('current-gpx').innerText = val;
+        alert('已切換軌跡為：' + val + ' (請重新整理監控頁面)');
+    }
+
+    // 2. 上傳 GPX (模擬)
+    function uploadGpx() {
+        const fileInput = document.getElementById('gpx-file');
+        if (fileInput.files.length === 0) return alert('請選擇檔案');
+        
+        const fileName = fileInput.files[0].name;
+        document.getElementById('upload-status').innerText = '正在上傳 ' + fileName + '...';
+        
+        // 實務上這裡需搭配後端(Node.js/PHP)存檔
+        // 暫時以模擬成功為例
+        setTimeout(() => {
+            document.getElementById('upload-status').innerText = '上傳成功！(模擬)';
+            const option = document.createElement('option');
+            option.value = fileName;
+            option.text = fileName;
+            document.getElementById('gpx-list').add(option);
+        }, 1500);
+    }
+
+    // 3. 清除試算表資料
+    async function clearSheet() {
+        if (!confirm('確定要清空所有回報資料嗎？此動作不可撤銷。')) return;
+        
+        const status = document.getElementById('sheet-status');
+        status.innerText = '正在通訊中...';
+        
+        try {
+            const response = await fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors' // 因為跨網域限制
+            });
+            status.innerText = '指令已發送 (請檢查試算表)。';
+            status.style.color = 'green';
+        } catch (e) {
+            status.innerText = '錯誤：' + e;
+            status.style.color = 'red';
+        }
+    }
+</script>
+</body>
+</html>
