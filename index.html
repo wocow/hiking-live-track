@@ -127,8 +127,11 @@ L.control.layers({
 }).addTo(map);
 
 // 3. 載入預設 GPX 軌跡 (計劃路線)
-const gpxUrl = '台北大縱走.gpx'; 
 
+const savedGpx = localStorage.getItem('selectedGPX');
+const gpxUrl = savedGpx ? savedGpx : '台北大縱走.gpx';
+
+    
 new L.GPX(gpxUrl, {
     async: true,
     marker_options: {
@@ -248,4 +251,5 @@ fetchLatestLocation();
 </script>
 </body>
 </html>
+
 
