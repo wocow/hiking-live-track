@@ -69,17 +69,24 @@ window.onload = async function() {
     status.innerText = '正在同步雲端清單...';
 
     try {
-        // 加入 { redirect: "follow" } 確保能正確拿到 JSON
+        // 加入 redirect: "follow" 確保能正確拿到資料
         const response = await fetch(GAS_URL, { redirect: "follow" });
+        if (!response.ok) throw new Error('網路回應不正確');
+        
         const data = await response.json();
 
-        // ... 以下維持原有的資料處理邏輯 ...
+        // 更新 UI 邏輯...
         document.getElementById('enable-line').checked = (data.line === true || data.line === "true");
         document.getElementById('enable-tg').checked = (data.telegram === true || data.telegram === "true");
-        // ...
+        
+        // ... (其餘原本的 GPX 清單更新邏輯)
+        
+        status.innerText = '✅ 雲端同步完成';
+        status.style.color = 'green';
     } catch (e) {
-        console.error("同步失敗原因:", e);
-        status.innerText = '⚠️ 無法從雲端同步，請確認 GAS 網址是否正確。';
+        console.error(e);
+        status.innerText = '⚠️ 無法從雲端同步，請確認 GAS 網址是否為 /exec 結尾。';
+        status.style.color = 'red';
     }
 };
     // 2. 切換 GPX (本地 & 顯示)
