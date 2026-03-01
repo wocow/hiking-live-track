@@ -64,28 +64,56 @@
 
     // 1. 初始化：從 GAS 獲取雲端清單與開關狀態
 // 修改後的初始化函數
+// 1. 初始化：從 GAS 獲取雲端清單與開關狀態
 window.onload = async function() {
     const status = document.getElementById('upload-status');
     status.innerText = '正在同步雲端清單...';
 
     try {
-        // 加入 redirect: "follow" 確保能正確拿到資料
         const response = await fetch(GAS_URL, { redirect: "follow" });
         if (!response.ok) throw new Error('網路回應不正確');
         
         const data = await response.json();
 
-        // 更新 UI 邏輯...
+        // --- A. 同步開關狀態 ---
         document.getElementById('enable-line').checked = (data.line === true || data.line === "true");
         document.getElementById('enable-tg').checked = (data.telegram === true || data.telegram === "true");
+
+        // --- B. 同步 GPX 清單 (這是你目前缺少的部分) ---
+        const select = document.getElementById('gpx-list');
+        select.innerHTML = ''; // 先清空舊的選項
         
-        // ... (其餘原本的 GPX 清單更新邏輯)
+        if (data.gpxFiles && data.gpxFiles.length > 0) {
+            data.gpxFiles.forEach(file => {
+                const opt = document.createElement('option');
+                opt.value = file;
+                opt.text = file;
+                select.add(opt);
+            });
+        } else {
+            // 如果雲端沒資料，至少放個預設值
+            const opt = new Option("請先上傳 GPX", "");
+            select.add(opt);
+        }
+
+        // --- C. 讀取並恢復上次選擇的檔案 ---
+        const lastSelected = localStorage.getItem('selectedGPX');
+        // 檢查上次選的是否還在清單中
+        if (lastSelected && Array.from(select.options).some(opt => opt.value === lastSelected)) {
+            select.value = lastSelected;
+        } else if (select.options.length > 0) {
+            // 如果沒紀錄，就選第一個
+            select.selectedIndex = 0;
+            localStorage.setItem('selectedGPX', select.value);
+        }
         
+        document.getElementById('current-gpx').innerText = select.value || "無軌跡";
+
         status.innerText = '✅ 雲端同步完成';
         status.style.color = 'green';
     } catch (e) {
         console.error(e);
-        status.innerText = '⚠️ 無法從雲端同步，請確認 GAS 網址是否為 /exec 結尾。';
+        status.innerText = '⚠️ 無法從雲端同步，請確認 GAS 網址是否正確。';
         status.style.color = 'red';
     }
 };
