@@ -117,7 +117,7 @@ const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 });
 
 // 預設載入國土測繪中心
-nlscMap.addTo(map);
+osm.addTo(map);
 
 // 圖層控制
 L.control.layers({ 
@@ -251,5 +251,6 @@ fetchLatestLocation();
 </script>
 </body>
 </html>
+
 
 
