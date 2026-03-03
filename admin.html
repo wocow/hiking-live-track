@@ -123,43 +123,77 @@ window.onload = async function() {
         document.getElementById('current-gpx').innerText = val;
     }
 
-    // 3. 上傳並永久保存到雲端
+  // 3. 上傳並永久保存到雲端
     async function uploadGpx() {
         const fileInput = document.getElementById('gpx-file');
         const status = document.getElementById('upload-status');
+        const select = document.getElementById('gpx-list');
+        
         if (fileInput.files.length === 0) return alert('請先選擇 .gpx 檔案');
         
-        const fileName = fileInput.files[0].name;
-        status.innerText = '正在保存檔名到雲端...';
+        const file = fileInput.files[0];
+        const fileName = file.name;
+
+        status.innerText = '正在讀取並上傳檔案...';
         status.style.color = 'orange';
 
-        try {
-            // POST 請求到 GAS (saveGpxName)
-            await fetch(GAS_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify({ type: 'saveGpxName', fileName: fileName })
-            });
+        // 讀取檔案內容 (如果你的 GAS 需要儲存內容的話)
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const gpxContent = e.target.result;
 
-            // 成功後更新介面
-            const select = document.getElementById('gpx-list');
-            // 檢查是否已存在
-            if (!Array.from(select.options).some(opt => opt.value === fileName)) {
-                const opt = document.createElement('option');
-                opt.value = fileName; opt.text = fileName;
-                select.add(opt);
+            try {
+                // 改用傳送 JSON 的方式，並處理 GAS 的 CORS
+                const payload = {
+                    type: 'saveGpxName',
+                    fileName: fileName,
+                    fileContent: gpxContent // 增加內容傳輸
+                };
+
+                // 注意：GAS 的 POST 建議不要用 no-cors 才能獲取狀態
+                // 但因為 GAS 跳轉特性，通常會使用 form 提交或特定處理
+                // 這裡我們先優化前端 UI 的即時反應
+                await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+
+                // --- 核心修正：強制更新下拉選單 ---
+                // 檢查是否已存在於清單中，若無則新增
+                let exists = false;
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === fileName) {
+                        exists = true;
+                        break;
+                    }
+                }
+
+                if (!exists) {
+                    const opt = document.createElement('option');
+                    opt.value = fileName;
+                    opt.text = fileName;
+                    select.add(opt);
+                }
+
+                // 選中新上傳的檔案
+                select.value = fileName;
+                changeGpx(fileName);
+
+                status.innerText = '✅ 檔案「' + fileName + '」已同步至雲端並選取';
+                status.style.color = 'green';
+                
+                // 清空檔案選取器，方便下次上傳
+                fileInput.value = '';
+
+            } catch (e) {
+                console.error('上傳出錯:', e);
+                status.innerText = '❌ 上傳失敗，請檢查 GAS 權限設定';
+                status.style.color = 'red';
             }
-            select.value = fileName;
-            changeGpx(fileName);
-
-            status.innerText = '✅ 已保存並切換至：' + fileName;
-            status.style.color = 'green';
-        } catch (e) {
-            status.innerText = '❌ 保存失敗';
-            status.style.color = 'red';
-        }
+        };
+        
+        reader.readAsText(file);
     }
-
     // 4. 更新通知設定
     async function updateNotifySettings() {
         const isLine = document.getElementById('enable-line').checked;
