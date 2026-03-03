@@ -116,6 +116,11 @@ const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
 });
 
+    // (3)  魯地圖
+const rudy = L.tileLayer('http://rudy.tile.basecamp.tw/{z}/{x}/{y}.png', {
+    attribution: '© rudyMap'
+});
+
 // 預設載入國土測繪中心
 osm.addTo(map);
 
@@ -123,7 +128,8 @@ osm.addTo(map);
 L.control.layers({ 
     "國土測繪中心 (台灣通用)": nlscMap,
     "OpenTopoMap (全球等高線)": openTopo,
-    "OSM 街道圖": osm 
+    "OSM 街道圖": osm, 
+    "魯地圖":rudy
 }).addTo(map);
 
 // 3. 載入預設 GPX 軌跡 (計劃路線)
@@ -262,6 +268,7 @@ fetchLatestLocation();
 </script>
 </body>
 </html>
+
 
 
 
