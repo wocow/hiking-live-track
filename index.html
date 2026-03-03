@@ -127,11 +127,12 @@ L.control.layers({
 }).addTo(map);
 
 // 3. 載入預設 GPX 軌跡 (計劃路線)
-
 const savedGpx = localStorage.getItem('selectedGPX');
 const gpxUrl = savedGpx ? savedGpx : '台北大縱走.gpx';
 
-    
+// 建立一個 LayerGroup 來存放帶描邊的 GPX 軌跡
+const gpxLayer = L.layerGroup().addTo(map);
+
 new L.GPX(gpxUrl, {
     async: true,
     marker_options: {
@@ -140,20 +141,33 @@ new L.GPX(gpxUrl, {
         shadowUrl: null,
         wptIconUrls: { '': null }
     },
-    polyline_options: { color: '#0033ff', weight: 4, opacity: 0.4 }
+    polyline_options: {
+        color: '#FFFFFF', // 底層白色描邊
+        weight: 10,       // 比主線粗，形成邊框感
+        opacity: 0.8
+    }
+})
+.on('addline', function(e) {
+    // 在白色底線之上，再加一層亮粉色主線
+    const mainLine = L.polyline(e.line.getLatLngs(), {
+        color: '#FF1493', // 亮粉色 (Deep Pink)
+        weight: 6,        // 主線粗度
+        opacity: 1.0,     // 不透明
+        lineJoin: 'round'
+    }).addTo(gpxLayer);
 })
 .on('addpoint', function(e) {
     if (e.point_type === 'waypoint') {
         const marker = e.element;
         marker.setIcon(L.divIcon({
             className: 'wpt-dot-icon',
-            iconSize: [8, 8],
-            iconAnchor: [4, 4]
+            iconSize: [10, 10], // 稍微放大航點
+            iconAnchor: [5, 5]
         }));
         
         const name = marker.options.title || "航點";
         const desc = marker.options.desc || "";
-        let popupContent = `<b>${name}</b>`;
+        let popupContent = `<b style="color:#FF1493;">${name}</b>`; // 標題同步改色
         const imgMatch = desc.match(/src="([^"]+)"/) || desc.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif))/i);
         if (imgMatch) popupContent += `<br><img src="${imgMatch[1]}" class="wpt-popup-img">`;
         marker.bindPopup(popupContent);
@@ -162,8 +176,7 @@ new L.GPX(gpxUrl, {
 .on('loaded', function(e) {
     map.fitBounds(e.target.getBounds()); 
 })
-.addTo(map);
-
+.addTo(gpxLayer);
 // 4. 定時抓取試算表位置 (回報軌跡)
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
 
@@ -251,6 +264,7 @@ fetchLatestLocation();
 </script>
 </body>
 </html>
+
 
 
 
