@@ -141,10 +141,8 @@ new L.GPX(gpxUrl, {
         shadowUrl: null,
         wptIconUrls: { '': null }
     },
-    polyline_options: {
-        color: '#FFFFFF', // 底層白色描邊
-        weight: 10,       // 比主線粗，形成邊框感
-        opacity: 0.8
+   // 將顏色改為圖片中的橘黃色，weight 維持 4 
+    polyline_options: { color: '#ff9900', weight: 4, opacity: 0.8
     }
 })
 .on('addline', function(e) {
@@ -264,6 +262,7 @@ fetchLatestLocation();
 </script>
 </body>
 </html>
+
 
 
 
