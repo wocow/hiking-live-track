@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>登山留守監控儀表板 - 最終修正版</title>
+    <title>登山留守監控儀表板 - 內嵌數據版</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -77,11 +77,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
 
 <script>
-// --- 配置區 ---
-// 1. 請將下方網址替換成您正確的 GPX 檔案絕對路徑 (建議使用 HTTPS 連結)
-const GPX_DATA_URL = 'https://raw.githubusercontent.com/your-username/your-repo/main/your-track.gpx'; 
+// --- GPX 數據內嵌區 ---
+// 請將下方引號內的內容替換成你實際的 GPX 文本
+const gpxStaticData = `
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Manual">
+  <trk><name>預計路線</name><trkseg>
+    <trkpt lat="25.0336" lon="121.5648"></trkpt>
+  </trkseg></trk>
+</gpx>
+`;
 
-// 2. 試算表 URL
+// --- 配置區 ---
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv";
 
 // --- 地圖邏輯 ---
@@ -117,30 +124,16 @@ function toggleLayer(type, isShow) {
     if (type === 'history') isShow ? map.addLayer(historyGroup) : map.removeLayer(historyGroup);
 }
 
-// 修正：強制忽略 LocalStorage，直接使用絕對路徑並加上 Cache Buster
+// 直接讀取內嵌文字，徹底解決手機讀檔權限問題
 function initTrack() {
-    // 加上 ?cb=... 確保手機不會讀到舊快取
-    const finalUrl = GPX_DATA_URL + "?cb=" + new Date().getTime();
-    
-    new L.GPX(finalUrl, {
+    new L.GPX(gpxStaticData, {
         async: true,
         marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null, wptIconUrls: { '': null } },
         polyline_options: { color: '#FF1493', weight: 5, opacity: 0.7, lineJoin: 'round' }
     })
-    .on('addpoint', function(e) {
-        if (e.point_type === 'waypoint') {
-            const marker = e.element;
-            marker.setIcon(L.divIcon({ className: 'wpt-dot-icon', iconSize: [8, 8], iconAnchor: [4, 4] }));
-        }
-    })
     .on('loaded', function(e) {
         map.fitBounds(e.target.getBounds());
         setTimeout(() => map.invalidateSize(), 500);
-    })
-    .on('error', function(e) {
-        console.warn('GPX 載入失敗:', e.err);
-        // 如果遠端失敗，嘗試載入同目錄下的檔案作為備案
-        console.log("嘗試備案路徑...");
     })
     .addTo(gpxLayer);
 }
