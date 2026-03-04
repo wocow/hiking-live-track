@@ -3,50 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>登山留守監控儀表板 - 精簡版</title>
+    <title>登山留守監控儀表板 - 摺疊優化版</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     <style>
-        body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }
-        #map { height: 100vh; width: 100%; background-color: #f8f9fa; }
+        body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #000; }
+        #map { height: 100vh; width: 100%; }
 
         /* 右上角整合面板 */
         .info-panel {
             position: absolute; top: 10px; right: 10px; z-index: 1000;
             background: rgba(255, 255, 255, 0.9);
             padding: 12px; border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            width: 220px; backdrop-filter: blur(4px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            width: 200px; backdrop-filter: blur(6px);
+            transition: all 0.3s ease;
         }
 
+        /* 標題與狀態 */
+        h4 { margin: 0 0 8px 0; color: #333; font-size: 15px; display: flex; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
         .status-dot {
-            display: inline-block; width: 8px; height: 8px;
-            border-radius: 50%; background: #4CAF50; margin-right: 5px;
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #4CAF50; margin-right: 8px;
             animation: pulse 2s infinite;
         }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-        h4 { margin: 0 0 8px 0; color: #333; font-size: 16px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-        .info-row { font-size: 13px; color: #444; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* 精簡資訊列 */
+        .info-row { font-size: 13px; color: #444; margin-bottom: 3px; line-height: 1.4; }
         .data-val { font-weight: bold; color: #000; }
-        .time-warning { color: #e61e1e; }
+        .time-warning { color: #e61e1e; font-weight: bold; }
 
-        /* 整合控制區 */
-        .control-section { margin-top: 8px; border-top: 1px dashed #ccc; padding-top: 8px; }
-        select, button { 
-            width: 100%; padding: 6px; margin-top: 5px; 
-            border: 1px solid #ccc; border-radius: 4px; font-size: 13px; cursor: pointer;
+        /* 操作按鈕區 */
+        .action-bar { display: flex; gap: 6px; margin-top: 10px; }
+        .btn-sm {
+            flex: 1; padding: 8px 4px; font-size: 12px; border-radius: 6px;
+            cursor: pointer; font-weight: bold; border: none;
+            transition: background 0.2s;
         }
-        button { background: #0078ff; color: white; border: none; font-weight: bold; }
-        .layer-toggle { font-size: 12px; display: flex; align-items: center; margin-top: 5px; cursor: pointer; }
-        .layer-toggle input { margin-right: 6px; }
+        .btn-primary { background: #0078ff; color: white; }
+        .btn-outline { background: #fff; color: #555; border: 1px solid #ccc; }
+        .btn-sm:active { opacity: 0.7; }
+
+        /* 隱藏式選單內容 */
+        .settings-content {
+            display: none; margin-top: 10px; padding-top: 10px;
+            border-top: 1px dashed #bbb;
+        }
+        .settings-content.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        select { width: 100%; padding: 6px; margin-bottom: 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px; }
+        .layer-toggle { font-size: 12px; display: flex; align-items: center; margin-bottom: 6px; cursor: pointer; color: #444; }
+        .layer-toggle input { margin-right: 8px; width: 14px; height: 14px; }
 
         /* 地圖元件樣式 */
         .number-icon {
             background-color: #ff4400; border: 2px solid white; border-radius: 50%;
             color: white; font-weight: bold; text-align: center; line-height: 20px;
-            font-size: 11px; box-shadow: 0 0 5px rgba(0,0,0,0.3);
+            font-size: 10px; box-shadow: 0 0 5px rgba(0,0,0,0.3);
         }
         .custom-pin {
             width: 24px; height: 24px; border-radius: 50% 50% 50% 0;
@@ -57,7 +73,7 @@
         }
         .wpt-dot-icon { background-color: #ffffff; border: 2px solid #FF1493; border-radius: 50%; }
 
-        @media (max-width: 480px) { .info-panel { width: 180px; } }
+        @media (max-width: 480px) { .info-panel { width: 170px; padding: 10px; } }
     </style>
 </head>
 <body>
@@ -69,18 +85,25 @@
     <div class="info-row">座標：<span class="data-val" id="last-coord">-</span></div>
     <div class="info-row">訊息：<span class="data-val" id="last-msg">無</span></div>
 
-    <div class="control-section">
+    <div class="action-bar">
+        <button class="btn-sm btn-primary" onclick="zoomToCurrent()">定位</button>
+        <button class="btn-sm btn-outline" id="toggle-btn" onclick="toggleSettings()">選單 ▾</button>
+    </div>
+
+    <div id="settings-menu" class="settings-content">
         <select id="base-layer-select" onchange="changeBaseLayer(this.value)">
-            <option value="rudy">魯地圖 (預設)</option>
-            <option value="nlsc">國土測繪圖</option>
-            <option value="topo">地形圖</option>
-            <option value="osm">街道圖</option>
+            <option value="rudy">🗺️ 魯地圖</option>
+            <option value="nlsc">🗺️ 國土測繪圖</option>
+            <option value="topo">🗺️ 地形圖</option>
+            <option value="osm">🗺️ 街道圖</option>
         </select>
         
-        <label class="layer-toggle"><input type="checkbox" checked onchange="toggleLayer('gpx', this.checked)"> 預計路線 (紅粉)</label>
-        <label class="layer-toggle"><input type="checkbox" checked onchange="toggleLayer('history', this.checked)"> 回報點位 (橙)</label>
-        
-        <button onclick="zoomToCurrent()">定位最新位置</button>
+        <label class="layer-toggle">
+            <input type="checkbox" checked onchange="toggleLayer('gpx', this.checked)"> 預計路線 (紅粉)
+        </label>
+        <label class="layer-toggle">
+            <input type="checkbox" checked onchange="toggleLayer('history', this.checked)"> 回報點位 (橙色)
+        </label>
     </div>
 </div>
 
@@ -90,7 +113,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
 
 <script>
-// 1. 初始化地圖與底圖
+// 1. 地圖與圖層初始化
 const layers = {
     rudy: L.tileLayer('https://tile.happyman.idv.tw/map/rudy/{z}/{x}/{y}.png', { attribution: '© 魯地圖' }),
     nlsc: L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', { maxZoom: 18, attribution: '© 內政部' }),
@@ -101,15 +124,21 @@ const layers = {
 const map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
 layers.rudy.addTo(map);
 
-// 2. 疊加圖層群組
 const gpxLayer = L.layerGroup().addTo(map);
 const historyGroup = L.layerGroup().addTo(map);
 const historyMarkers = L.layerGroup().addTo(historyGroup);
 const historyLine = L.polyline([], { color: '#ff4400', weight: 3, dashArray: '5, 8', opacity: 0.6 }).addTo(historyGroup);
 
-// 3. 控制功能
+// 2. 選單控制邏輯
+function toggleSettings() {
+    const menu = document.getElementById('settings-menu');
+    const btn = document.getElementById('toggle-btn');
+    const isActive = menu.classList.toggle('active');
+    btn.innerText = isActive ? "收起 ▴" : "選單 ▾";
+}
+
 function changeBaseLayer(key) {
-    Object.values(layers).forEach(layer => map.removeLayer(layer));
+    Object.values(layers).forEach(l => map.removeLayer(l));
     layers[key].addTo(map);
 }
 
@@ -118,7 +147,7 @@ function toggleLayer(type, isShow) {
     if (type === 'history') isShow ? map.addLayer(historyGroup) : map.removeLayer(historyGroup);
 }
 
-// 4. 載入 GPX
+// 3. 載入預計路線 GPX
 const gpxUrl = localStorage.getItem('selectedGPX') || '台北大縱走.gpx';
 new L.GPX(gpxUrl, {
     async: true,
@@ -129,13 +158,13 @@ new L.GPX(gpxUrl, {
     if (e.point_type === 'waypoint') {
         const marker = e.element;
         marker.setIcon(L.divIcon({ className: 'wpt-dot-icon', iconSize: [8, 8], iconAnchor: [4, 4] }));
-        marker.bindPopup(`<b style="color:#FF1493;">${marker.options.title || "航點"}</b>`);
+        marker.bindPopup(`<b>${marker.options.title || "航點"}</b>`);
     }
 })
 .on('loaded', function(e) { map.fitBounds(e.target.getBounds()); })
 .addTo(gpxLayer);
 
-// 5. 數據抓取
+// 4. 抓取 Google 試算表座標
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
 let lastPos = [0, 0];
 
@@ -177,7 +206,7 @@ async function fetchLatestLocation() {
             }
         });
         historyLine.setLatLngs(latlngs);
-    } catch (e) { console.error('Error:', e); }
+    } catch (e) { console.error('Fetch error:', e); }
 }
 
 function updateInfoPanel(time, pos, msg) {
@@ -186,13 +215,15 @@ function updateInfoPanel(time, pos, msg) {
     const timeDisplay = isNaN(diffMins) ? time : `${diffMins}m前`;
     const timeClass = diffMins > 60 ? 'time-warning' : '';
 
-    document.getElementById('last-time').innerHTML = `<span class="${timeClass}">${timeDisplay}</span> (${time.split(' ')[1] || ''})`;
+    // 精簡顯示：時間 (時:分) | 座標 (小數4位)
+    document.getElementById('last-time').innerHTML = `<span class="${timeClass}">${timeDisplay}</span> (${time.split(' ')[1]?.substring(0,5) || ''})`;
     document.getElementById('last-coord').innerText = `${pos[0].toFixed(4)}, ${pos[1].toFixed(4)}`;
     document.getElementById('last-msg').innerText = msg;
 }
 
 function zoomToCurrent() { if (lastPos[0] !== 0) map.setView(lastPos, 16); }
 
+// 每 5 分鐘自動刷新
 setInterval(fetchLatestLocation, 300000);
 fetchLatestLocation();
 </script>
