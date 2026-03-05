@@ -2,231 +2,201 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>留守系統 - 雲端管理後台</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>登山留守 - 雲端管理後台</title>
     <style>
         :root { --primary: #0078ff; --danger: #e61e1e; --bg: #f4f7f6; }
-        body { font-family: sans-serif; padding: 20px; background: var(--bg); }
-        .container { max-width: 600px; margin: 0 auto; }
+        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; padding: 20px; background: var(--bg); display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 500px; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h2 { color: #333; margin-top: 0; border-left: 5px solid var(--primary); padding-left: 10px; }
-        select, input[type="file"] { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; }
-        .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .btn-upload { background: var(--primary); color: white; }
-        .btn-danger { background: white; color: var(--danger); border: 1px solid var(--danger); }
-        .switch-group { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
-        .status-msg { margin-top: 10px; font-size: 13px; font-weight: bold; text-align: center; min-height: 20px; }
+        h1 { text-align: center; color: #333; font-size: 24px; margin-bottom: 25px; }
+        h2 { color: #333; margin-top: 0; border-left: 5px solid var(--primary); padding-left: 10px; font-size: 18px; }
+        
+        /* 表單元件 */
+        label { display: block; margin-top: 15px; font-size: 14px; color: #666; }
+        select, input[type="file"] { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        
+        /* 按鈕樣式 */
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: opacity 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-danger { background: white; color: var(--danger); border: 1px solid var(--danger); margin-top: 20px; }
+        .btn:active { opacity: 0.8; }
+        
+        /* 開關樣式 */
+        .switch-group { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
+        .status-msg { margin-top: 15px; font-size: 13px; font-weight: bold; text-align: center; min-height: 20px; }
+        
+        hr { border: 0; border-top: 1px dashed #ddd; margin: 20px 0; }
+        #current-gpx { color: var(--primary); word-break: break-all; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div style="text-align: center; margin-bottom: 20px;">
-        <h1>⛰️ 雲端管理後台</h1>
-    </div>
+    <h1>⛰️ 登山留守管理</h1>
 
     <div class="card">
-        <h2>1. 航跡 (GPX) 管理</h2>
-        <p>目前使用：<strong id="current-gpx" style="color: var(--primary);">載入中...</strong></p>
+        <h2>1. 航跡 (GPX) 同步設定</h2>
+        <p>目前雲端指定：<strong id="current-gpx">載入中...</strong></p>
         
-        <label>選擇雲端軌跡：</label>
-        <select id="gpx-list" onchange="changeGpx(this.value)"></select>
+        <label>切換現有軌跡：</label>
+        <select id="gpx-list" onchange="changeGpx(this.value)">
+            <option value="">正在讀取雲端清單...</option>
+        </select>
 
         <hr>
-        <label>上傳新檔案並加入雲端清單：</label>
+        <label>上傳並同步新檔案：</label>
         <input type="file" id="gpx-file" accept=".gpx">
-        <button class="btn btn-upload" onclick="uploadGpx()">確認上傳並保存</button>
-        <div id="upload-status" class="status-msg"></div>
+        <button class="btn btn-primary" onclick="uploadGpx()">確認上傳並切換路線</button>
+        <div id="gpx-status" class="status-msg"></div>
     </div>
 
     <div class="card">
-        <h2>2. 通知轉發設定</h2>
+        <h2>2. 自動通知開關</h2>
         <div class="switch-group">
-            <span>LINE 通知</span>
-            <input type="checkbox" id="enable-line" style="width:20px; height:20px;" onchange="updateNotifySettings()">
+            <span>LINE 通知發送</span>
+            <input type="checkbox" id="enable-line" style="width:22px; height:22px;" onchange="updateNotifySettings()">
         </div>
         <div class="switch-group">
-            <span>Telegram 通知</span>
-            <input type="checkbox" id="enable-tg" style="width:20px; height:20px;" onchange="updateNotifySettings()">
+            <span>Telegram 通知發送</span>
+            <input type="checkbox" id="enable-tg" style="width:22px; height:22px;" onchange="updateNotifySettings()">
         </div>
         <div id="notify-status" class="status-msg"></div>
     </div>
 
-    <div class="card">
+    <div class="card" style="text-align: center;">
         <h2>3. 數據維護</h2>
-        <button class="btn btn-danger" onclick="clearSheet()">⚠️ 清空所有回報紀錄</button>
+        <button class="btn btn-danger" onclick="clearSheet()">⚠️ 清空試算表回報紀錄</button>
         <div id="sheet-status" class="status-msg"></div>
     </div>
 </div>
 
 <script>
+    // ⚠️ 請務必填入你「更新部署」後的 GAS 網址
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxhEOvYjimYgpZYpa1tts8et_IuQlc2Agx4Rco1KQqtt4Z7rsENNOTYkMrLPKHMh0nv4A/exec';
 
-    // 1. 初始化：從 GAS 獲取雲端清單與開關狀態
-// 修改後的初始化函數
-// 1. 初始化：從 GAS 獲取雲端清單與開關狀態
-window.onload = async function() {
-    const status = document.getElementById('upload-status');
-    status.innerText = '正在同步雲端清單...';
+    // 1. 初始化：從雲端抓取目前狀態
+    window.onload = async function() {
+        showStatus('gpx-status', '正在同步雲端設定...', 'orange');
+        try {
+            const response = await fetch(GAS_URL);
+            const data = await response.json();
 
-    try {
-        const response = await fetch(GAS_URL, { redirect: "follow" });
-        if (!response.ok) throw new Error('網路回應不正確');
-        
-        const data = await response.json();
+            // 更新通知開關
+            document.getElementById('enable-line').checked = data.line;
+            document.getElementById('enable-tg').checked = data.telegram;
 
-        // --- A. 同步開關狀態 ---
-        document.getElementById('enable-line').checked = (data.line === true || data.line === "true");
-        document.getElementById('enable-tg').checked = (data.telegram === true || data.telegram === "true");
-
-        // --- B. 同步 GPX 清單 (這是你目前缺少的部分) ---
-        const select = document.getElementById('gpx-list');
-        select.innerHTML = ''; // 先清空舊的選項
-        
-        if (data.gpxFiles && data.gpxFiles.length > 0) {
-            data.gpxFiles.forEach(file => {
-                const opt = document.createElement('option');
-                opt.value = file;
-                opt.text = file;
-                select.add(opt);
-            });
-        } else {
-            // 如果雲端沒資料，至少放個預設值
-            const opt = new Option("請先上傳 GPX", "");
-            select.add(opt);
-        }
-
-        // --- C. 讀取並恢復上次選擇的檔案 ---
-        const lastSelected = localStorage.getItem('selectedGPX');
-        // 檢查上次選的是否還在清單中
-        if (lastSelected && Array.from(select.options).some(opt => opt.value === lastSelected)) {
-            select.value = lastSelected;
-        } else if (select.options.length > 0) {
-            // 如果沒紀錄，就選第一個
-            select.selectedIndex = 0;
-            localStorage.setItem('selectedGPX', select.value);
-        }
-        
-        document.getElementById('current-gpx').innerText = select.value || "無軌跡";
-
-        status.innerText = '✅ 雲端同步完成';
-        status.style.color = 'green';
-    } catch (e) {
-        console.error(e);
-        status.innerText = '⚠️ 無法從雲端同步，請確認 GAS 網址是否正確。';
-        status.style.color = 'red';
-    }
-};
-    // 2. 切換 GPX (本地 & 顯示)
-    function changeGpx(val) {
-        localStorage.setItem('selectedGPX', val);
-        document.getElementById('current-gpx').innerText = val;
-    }
-
-  // 3. 上傳並永久保存到雲端
-    async function uploadGpx() {
-        const fileInput = document.getElementById('gpx-file');
-        const status = document.getElementById('upload-status');
-        const select = document.getElementById('gpx-list');
-        
-        if (fileInput.files.length === 0) return alert('請先選擇 .gpx 檔案');
-        
-        const file = fileInput.files[0];
-        const fileName = file.name;
-
-        status.innerText = '正在讀取並上傳檔案...';
-        status.style.color = 'orange';
-
-        // 讀取檔案內容 (如果你的 GAS 需要儲存內容的話)
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-            const gpxContent = e.target.result;
-
-            try {
-                // 改用傳送 JSON 的方式，並處理 GAS 的 CORS
-                const payload = {
-                    type: 'saveGpxName',
-                    fileName: fileName,
-                    fileContent: gpxContent // 增加內容傳輸
-                };
-
-                // 注意：GAS 的 POST 建議不要用 no-cors 才能獲取狀態
-                // 但因為 GAS 跳轉特性，通常會使用 form 提交或特定處理
-                // 這裡我們先優化前端 UI 的即時反應
-                await fetch(GAS_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
-
-                // --- 核心修正：強制更新下拉選單 ---
-                // 檢查是否已存在於清單中，若無則新增
-                let exists = false;
-                for (let i = 0; i < select.options.length; i++) {
-                    if (select.options[i].value === fileName) {
-                        exists = true;
-                        break;
-                    }
-                }
-
-                if (!exists) {
-                    const opt = document.createElement('option');
-                    opt.value = fileName;
-                    opt.text = fileName;
+            // 更新 GPX 下拉清單
+            const select = document.getElementById('gpx-list');
+            select.innerHTML = '';
+            if (data.gpxFiles && data.gpxFiles.length > 0) {
+                data.gpxFiles.forEach(file => {
+                    const opt = new Option(file, file);
                     select.add(opt);
+                });
+                // 設定目前選中的值
+                if (data.selectedGPX) {
+                    select.value = data.selectedGPX;
+                    document.getElementById('current-gpx').innerText = data.selectedGPX;
                 }
-
-                // 選中新上傳的檔案
-                select.value = fileName;
-                changeGpx(fileName);
-
-                status.innerText = '✅ 檔案「' + fileName + '」已同步至雲端並選取';
-                status.style.color = 'green';
-                
-                // 清空檔案選取器，方便下次上傳
-                fileInput.value = '';
-
-            } catch (e) {
-                console.error('上傳出錯:', e);
-                status.innerText = '❌ 上傳失敗，請檢查 GAS 權限設定';
-                status.style.color = 'red';
+            } else {
+                select.add(new Option("無可用軌跡，請先上傳", ""));
             }
-        };
+
+            showStatus('gpx-status', '✅ 雲端同步完成', 'green');
+        } catch (e) {
+            showStatus('gpx-status', '❌ 無法連線至雲端 (GAS)', 'red');
+            console.error(e);
+        }
+    };
+
+    // 2. 切換 GPX 軌跡
+    async function changeGpx(val) {
+        if (!val) return;
+        showStatus('gpx-status', '正在切換路線...', 'orange');
+        document.getElementById('current-gpx').innerText = val;
         
-        reader.readAsText(file);
-    }
-    // 4. 更新通知設定
-    async function updateNotifySettings() {
-        const isLine = document.getElementById('enable-line').checked;
-        const isTg = document.getElementById('enable-tg').checked;
-        const status = document.getElementById('notify-status');
-        
-        status.innerText = '同步中...';
         try {
             await fetch(GAS_URL, {
                 method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify({ type: 'updateConfig', line: isLine, telegram: isTg })
+                body: JSON.stringify({ type: 'saveGpxName', fileName: val })
             });
-            status.innerText = '✅ 設定已更新';
-            status.style.color = 'green';
-        } catch (e) { status.innerText = '❌ 更新失敗'; }
+            showStatus('gpx-status', '✅ 成功切換至：' + val, 'green');
+        } catch (e) {
+            showStatus('gpx-status', '❌ 切換失敗', 'red');
+        }
+    }
+
+    // 3. 上傳新 GPX 檔案名至雲端
+    async function uploadGpx() {
+        const fileInput = document.getElementById('gpx-file');
+        const file = fileInput.files[0];
+        if (!file) return alert('請先選擇 .gpx 檔案');
+
+        const fileName = file.name;
+        showStatus('gpx-status', '正在同步新檔名至雲端...', 'orange');
+
+        try {
+            await fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify({ type: 'saveGpxName', fileName: fileName })
+            });
+
+            // 成功後更新 UI
+            const select = document.getElementById('gpx-list');
+            if (![...select.options].some(opt => opt.value === fileName)) {
+                select.add(new Option(fileName, fileName), 0);
+            }
+            select.value = fileName;
+            document.getElementById('current-gpx').innerText = fileName;
+            
+            showStatus('gpx-status', '✅ 「' + fileName + '」已設為目前路線', 'green');
+            fileInput.value = ''; // 清空選取器
+        } catch (e) {
+            showStatus('gpx-status', '❌ 同步失敗', 'red');
+        }
+    }
+
+    // 4. 更新通知設定
+    async function updateNotifySettings() {
+        const line = document.getElementById('enable-line').checked;
+        const tg = document.getElementById('enable-tg').checked;
+        showStatus('notify-status', '同步設定中...', 'orange');
+
+        try {
+            await fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify({ type: 'updateConfig', line: line, telegram: tg })
+            });
+            showStatus('notify-status', '✅ 通知設定已更新', 'green');
+        } catch (e) {
+            showStatus('notify-status', '❌ 更新失敗', 'red');
+        }
     }
 
     // 5. 清空資料
     async function clearSheet() {
-        if (!confirm('確定要清空回報資料嗎？')) return;
-        const status = document.getElementById('sheet-status');
-        status.innerText = '處理中...';
+        if (!confirm('⚠️ 警告：這將刪除試算表中除了標題以外的所有座標紀錄，確定嗎？')) return;
+        showStatus('sheet-status', '正在處理...', 'orange');
+
         try {
             await fetch(GAS_URL, {
                 method: 'POST',
-                mode: 'no-cors',
                 body: JSON.stringify({ type: 'clearData' })
             });
-            status.innerText = '✅ 資料已清空';
-            status.style.color = 'green';
-        } catch (e) { status.innerText = '❌ 執行失敗'; }
+            showStatus('sheet-status', '✅ 回報紀錄已清空', 'green');
+        } catch (e) {
+            showStatus('sheet-status', '❌ 清空失敗', 'red');
+        }
+    }
+
+    // 工具：顯示狀態訊息
+    function showStatus(id, msg, color) {
+        const el = document.getElementById(id);
+        el.innerText = msg;
+        el.style.color = color;
     }
 </script>
+
 </body>
 </html>
