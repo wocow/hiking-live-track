@@ -170,21 +170,7 @@ let lastPos = [0, 0];
 
 async function fetchLatestLocation() {
     try {
-        const response = await fetch(SHEET_CSV_URL + "&cb=" + Date.now());
-        const csvData = await response.text();
-        const rows = csvData.trim().split('\n');
-        if (rows.length <= 1) return; 
-
-        // 假設妳把 GPX 檔名放在試算表第一列的第 5 個欄位 (E1)
-        // CSV 分割後的 rows[1] 是資料第一列，cols[4] 是 E 欄
-        const firstRowCols = rows[1].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-        const gpxFromSheet = firstRowCols[8] ? firstRowCols[8].replace(/"/g, "").trim() : null;
-
-        // 如果試算表有設定新路線，且跟目前載入的不同，就切換
-        if (gpxFromSheet && window.currentGpxName !== gpxFromSheet) {
-            loadNewGPX(gpxFromSheet);
-            window.currentGpxName = gpxFromSheet;
-        }
+    
         const response = await fetch(SHEET_CSV_URL + "&cb=" + Date.now());
         const csvData = await response.text();
         const rows = csvData.trim().split('\n').filter(r => r.trim() !== "");
@@ -244,5 +230,6 @@ fetchLatestLocation();
 </script>
 </body>
 </html>
+
 
 
