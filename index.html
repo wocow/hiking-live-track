@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>登山留守監控儀表板 - 最終修正版</title>
+    <title>登山留守監控儀表板 - 摺疊優化版</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -11,46 +11,77 @@
         body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #000; }
         #map { height: 100vh; width: 100%; }
 
+        /* 右上角整合面板 */
         .info-panel {
             position: absolute; top: 10px; right: 10px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.92);
+            background: rgba(255, 255, 255, 0.9);
             padding: 12px; border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            width: 190px; backdrop-filter: blur(8px);
+            width: 200px; backdrop-filter: blur(6px);
+            transition: all 0.3s ease;
         }
 
+        /* 標題與狀態 */
         h4 { margin: 0 0 8px 0; color: #333; font-size: 15px; display: flex; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; margin-right: 8px; animation: pulse 2s infinite; }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #4CAF50; margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-        .info-row { font-size: 13px; color: #444; margin-bottom: 4px; line-height: 1.4; }
+        /* 精簡資訊列 */
+        .info-row { font-size: 13px; color: #444; margin-bottom: 3px; line-height: 1.4; }
         .data-val { font-weight: bold; color: #000; }
         .time-warning { color: #e61e1e; font-weight: bold; }
 
+        /* 操作按鈕區 */
         .action-bar { display: flex; gap: 6px; margin-top: 10px; }
-        .btn-sm { flex: 1; padding: 8px 2px; font-size: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; border: none; text-align: center; }
+        .btn-sm {
+            flex: 1; padding: 8px 4px; font-size: 12px; border-radius: 6px;
+            cursor: pointer; font-weight: bold; border: none;
+            transition: background 0.2s;
+        }
         .btn-primary { background: #0078ff; color: white; }
         .btn-outline { background: #fff; color: #555; border: 1px solid #ccc; }
+        .btn-sm:active { opacity: 0.7; }
 
-        .settings-content { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #bbb; }
-        .settings-content.active { display: block; }
+        /* 隱藏式選單內容 */
+        .settings-content {
+            display: none; margin-top: 10px; padding-top: 10px;
+            border-top: 1px dashed #bbb;
+        }
+        .settings-content.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
         select { width: 100%; padding: 6px; margin-bottom: 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px; }
-        .layer-toggle { font-size: 12px; display: flex; align-items: center; margin-bottom: 8px; cursor: pointer; }
-        .layer-toggle input { margin-right: 8px; }
+        .layer-toggle { font-size: 12px; display: flex; align-items: center; margin-bottom: 6px; cursor: pointer; color: #444; }
+        .layer-toggle input { margin-right: 8px; width: 14px; height: 14px; }
 
-        .number-icon { background-color: #ff4400; border: 2px solid white; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 20px; font-size: 10px; }
-        .custom-pin { width: 24px; height: 24px; border-radius: 50% 50% 50% 0; background: #e61e1e; position: absolute; transform: rotate(-45deg); left: 50%; top: 50%; margin: -24px 0 0 -12px; border: 2px solid #fff; }
+        /* 地圖元件樣式 */
+        .number-icon {
+            background-color: #ff4400; border: 2px solid white; border-radius: 50%;
+            color: white; font-weight: bold; text-align: center; line-height: 20px;
+            font-size: 10px; box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+        .custom-pin {
+            width: 24px; height: 24px; border-radius: 50% 50% 50% 0;
+            background: #e61e1e; position: absolute; transform: rotate(-45deg);
+            left: 50%; top: 50%; margin: -24px 0 0 -12px;
+            border: 2px solid #fff; box-shadow: 0 0 8px rgba(0,0,0,0.4);
+            animation: pulse 2s infinite;
+        }
         .wpt-dot-icon { background-color: #ffffff; border: 2px solid #FF1493; border-radius: 50%; }
 
-        @media (max-width: 480px) { .info-panel { width: 165px; padding: 10px; } }
+        @media (max-width: 480px) { .info-panel { width: 170px; padding: 10px; } }
     </style>
 </head>
 <body>
 
 <div class="info-panel">
     <h4><span class="status-dot"></span>留守監控</h4>
-    <div class="info-row">最後：<span class="data-val" id="last-time">讀取中...</span></div>
+    
+    <div class="info-row">最後：<span class="data-val" id="last-time">載入中...</span></div>
     <div class="info-row">座標：<span class="data-val" id="last-coord">-</span></div>
     <div class="info-row">訊息：<span class="data-val" id="last-msg">無</span></div>
 
@@ -66,8 +97,13 @@
             <option value="topo">🗺️ 地形圖</option>
             <option value="osm">🗺️ 街道圖</option>
         </select>
-        <label class="layer-toggle"><input type="checkbox" checked onchange="toggleLayer('gpx', this.checked)"> 預計路線</label>
-        <label class="layer-toggle"><input type="checkbox" checked onchange="toggleLayer('history', this.checked)"> 回報點位</label>
+        
+        <label class="layer-toggle">
+            <input type="checkbox" checked onchange="toggleLayer('gpx', this.checked)"> 預計路線 (紅粉)
+        </label>
+        <label class="layer-toggle">
+            <input type="checkbox" checked onchange="toggleLayer('history', this.checked)"> 回報點位 (橙色)
+        </label>
     </div>
 </div>
 
@@ -77,14 +113,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
 
 <script>
-// --- 配置區 ---
-// 1. 請將下方網址替換成您正確的 GPX 檔案絕對路徑 (建議使用 HTTPS 連結)
-const GPX_DATA_URL = 'https://raw.githubusercontent.com/your-username/your-repo/main/your-track.gpx'; 
-
-// 2. 試算表 URL
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv";
-
-// --- 地圖邏輯 ---
+// 1. 地圖與圖層初始化
 const layers = {
     rudy: L.tileLayer('https://tile.happyman.idv.tw/map/rudy/{z}/{x}/{y}.png', { attribution: '© 魯地圖' }),
     nlsc: L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', { maxZoom: 18, attribution: '© 內政部' }),
@@ -92,14 +121,15 @@ const layers = {
     osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' })
 };
 
-const map = L.map('map', { zoomControl: false, tap: false }).setView([23.5, 121], 7);
+const map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
 layers.rudy.addTo(map);
 
 const gpxLayer = L.layerGroup().addTo(map);
 const historyGroup = L.layerGroup().addTo(map);
 const historyMarkers = L.layerGroup().addTo(historyGroup);
-const historyLine = L.polyline([], { color: '#ff4400', weight: 3, dashArray: '5, 8', opacity: 0.7 }).addTo(historyGroup);
+const historyLine = L.polyline([], { color: '#ff4400', weight: 3, dashArray: '5, 8', opacity: 0.6 }).addTo(historyGroup);
 
+// 2. 選單控制邏輯
 function toggleSettings() {
     const menu = document.getElementById('settings-menu');
     const btn = document.getElementById('toggle-btn');
@@ -117,35 +147,27 @@ function toggleLayer(type, isShow) {
     if (type === 'history') isShow ? map.addLayer(historyGroup) : map.removeLayer(historyGroup);
 }
 
-// 修正：強制忽略 LocalStorage，直接使用絕對路徑並加上 Cache Buster
-function initTrack() {
-    // 加上 ?cb=... 確保手機不會讀到舊快取
-    const finalUrl = GPX_DATA_URL + "?cb=" + new Date().getTime();
-    
-    new L.GPX(finalUrl, {
-        async: true,
-        marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null, wptIconUrls: { '': null } },
-        polyline_options: { color: '#FF1493', weight: 5, opacity: 0.7, lineJoin: 'round' }
-    })
-    .on('addpoint', function(e) {
-        if (e.point_type === 'waypoint') {
-            const marker = e.element;
-            marker.setIcon(L.divIcon({ className: 'wpt-dot-icon', iconSize: [8, 8], iconAnchor: [4, 4] }));
-        }
-    })
-    .on('loaded', function(e) {
-        map.fitBounds(e.target.getBounds());
-        setTimeout(() => map.invalidateSize(), 500);
-    })
-    .on('error', function(e) {
-        console.warn('GPX 載入失敗:', e.err);
-        // 如果遠端失敗，嘗試載入同目錄下的檔案作為備案
-        console.log("嘗試備案路徑...");
-    })
-    .addTo(gpxLayer);
-}
+// 3. 載入預計路線 GPX
+const gpxUrl = localStorage.getItem('selectedGPX') || '台北大縱走.gpx';
+new L.GPX(gpxUrl, {
+    async: true,
+    marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null, wptIconUrls: { '': null } },
+    polyline_options: { color: '#FF1493', weight: 5, opacity: 0.7 }
+})
+.on('addpoint', function(e) {
+    if (e.point_type === 'waypoint') {
+        const marker = e.element;
+        marker.setIcon(L.divIcon({ className: 'wpt-dot-icon', iconSize: [8, 8], iconAnchor: [4, 4] }));
+        marker.bindPopup(`<b>${marker.options.title || "航點"}</b>`);
+    }
+})
+.on('loaded', function(e) { map.fitBounds(e.target.getBounds()); })
+.addTo(gpxLayer);
 
+// 4. 抓取 Google 試算表座標
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
 let lastPos = [0, 0];
+
 async function fetchLatestLocation() {
     try {
         const response = await fetch(SHEET_CSV_URL + "&cb=" + Date.now());
@@ -166,14 +188,16 @@ async function fetchLatestLocation() {
                 latlngs.push(pos);
                 const isLatest = (index === dataRows.length - 1);
                 
-                L.marker(pos, {
+                const marker = L.marker(pos, {
                     icon: L.divIcon({
                         className: isLatest ? 'latest-pin-container' : 'number-icon',
                         html: isLatest ? '<div class="custom-pin"></div>' : (index + 1).toString().padStart(2, '0'),
                         iconSize: isLatest ? [24, 24] : [20, 20],
                         iconAnchor: isLatest ? [12, 24] : [10, 10]
                     })
-                }).addTo(historyMarkers).bindPopup(`<b>${isLatest?'最新回報':'序號:'+(index+1)}</b><br>時間: ${time}`);
+                }).addTo(historyMarkers);
+                
+                marker.bindPopup(`<b>${isLatest?'最新回報':'序號:'+(index+1)}</b><br>時間: ${time}<br>訊息: ${msg}`);
                 
                 if (isLatest) {
                     lastPos = pos;
@@ -182,25 +206,26 @@ async function fetchLatestLocation() {
             }
         });
         historyLine.setLatLngs(latlngs);
-    } catch (e) { console.error('Data error:', e); }
+    } catch (e) { console.error('Fetch error:', e); }
 }
 
 function updateInfoPanel(time, pos, msg) {
     const reportTime = new Date(time.replace(/-/g, '/')); 
     const diffMins = Math.floor((new Date() - reportTime) / 60000);
-    const timeDisplay = isNaN(diffMins) ? "--" : `${diffMins}m前`;
+    const timeDisplay = isNaN(diffMins) ? time : `${diffMins}m前`;
     const timeClass = diffMins > 60 ? 'time-warning' : '';
-    document.getElementById('last-time').innerHTML = `<span class="${timeClass}">${timeDisplay}</span> <small>(${time.split(' ')[1]?.substring(0,5) || ''})</small>`;
+
+    // 精簡顯示：時間 (時:分) | 座標 (小數4位)
+    document.getElementById('last-time').innerHTML = `<span class="${timeClass}">${timeDisplay}</span> (${time.split(' ')[1]?.substring(0,5) || ''})`;
     document.getElementById('last-coord').innerText = `${pos[0].toFixed(4)}, ${pos[1].toFixed(4)}`;
     document.getElementById('last-msg').innerText = msg;
 }
 
-function zoomToCurrent() { if (lastPos[0] !== 0) { map.setView(lastPos, 16); setTimeout(() => map.invalidateSize(), 100); } }
+function zoomToCurrent() { if (lastPos[0] !== 0) map.setView(lastPos, 16); }
 
-initTrack();
-fetchLatestLocation();
+// 每 5 分鐘自動刷新
 setInterval(fetchLatestLocation, 300000);
-window.addEventListener('resize', () => map.invalidateSize());
+fetchLatestLocation();
 </script>
 </body>
 </html>
