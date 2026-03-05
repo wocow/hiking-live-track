@@ -149,19 +149,19 @@ function toggleLayer(type, isShow) {
 
 // 3. 載入預計路線 GPX
 const gpxUrl = localStorage.getItem('selectedGPX') || '台北大縱走.gpx';
+// 加入 error 事件監聽，幫助偵錯
 new L.GPX(gpxUrl, {
     async: true,
     marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null, wptIconUrls: { '': null } },
     polyline_options: { color: '#FF1493', weight: 5, opacity: 0.7 }
 })
-.on('addpoint', function(e) {
-    if (e.point_type === 'waypoint') {
-        const marker = e.element;
-        marker.setIcon(L.divIcon({ className: 'wpt-dot-icon', iconSize: [8, 8], iconAnchor: [4, 4] }));
-        marker.bindPopup(`<b>${marker.options.title || "航點"}</b>`);
-    }
+.on('error', function(e) {
+    console.error('GPX 載入失敗:', e.err);
+    alert('無法載入路線檔: ' + gpxUrl); // 這是為了在手機上看到錯誤訊息
 })
-.on('loaded', function(e) { map.fitBounds(e.target.getBounds()); })
+.on('loaded', function(e) { 
+    map.fitBounds(e.target.getBounds()); 
+})
 .addTo(gpxLayer);
 
 // 4. 抓取 Google 試算表座標
@@ -229,3 +229,4 @@ fetchLatestLocation();
 </script>
 </body>
 </html>
+
