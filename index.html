@@ -158,7 +158,7 @@ async function fetchData() {
         // --- GPX 路線自動同步邏輯 ---
         // 抓取第一筆資料列 (dataRows[0]) 的第 5 欄 (E 欄) 作為 GPX 檔名
         const firstCols = dataRows[0].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-        let gpxFromSheet = (firstCols[8] || "台北大縱走.gpx").replace(/"/g, "").trim();
+        let gpxFromSheet = (firstCols[4] || "台北大縱走.gpx").replace(/"/g, "").trim();
 
         if (gpxFromSheet !== currentLoadedGPX) {
             loadGPXTrack(gpxFromSheet);
@@ -238,3 +238,4 @@ fetchData();
 </script>
 </body>
 </html>
+
