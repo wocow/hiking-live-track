@@ -111,21 +111,28 @@
     };
 
     // 2. 切換 GPX 軌跡
-    async function changeGpx(val) {
-        if (!val) return;
-        showStatus('gpx-status', '正在切換路線...', 'orange');
-        document.getElementById('current-gpx').innerText = val;
+   // 修正後的切換函式
+async function changeGpx(val) {
+    if (!val) return;
+    document.getElementById('current-gpx').innerText = val;
+    showStatus('gpx-status', '同步中...', 'orange');
+    
+    try {
+        // 必須確保以 POST 方式傳送 JSON 字串
+        const response = await fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ 
+                type: 'saveGpxName', 
+                fileName: val 
+            })
+        });
         
-        try {
-            await fetch(GAS_URL, {
-                method: 'POST',
-                body: JSON.stringify({ type: 'saveGpxName', fileName: val })
-            });
-            showStatus('gpx-status', '✅ 成功切換至：' + val, 'green');
-        } catch (e) {
-            showStatus('gpx-status', '❌ 切換失敗', 'red');
-        }
+        showStatus('gpx-status', '✅ 雲端已同步：' + val, 'green');
+    } catch (e) {
+        console.error("同步失敗:", e);
+        showStatus('gpx-status', '❌ 同步失敗，請檢查網路或 GAS 網址', 'red');
     }
+}
 
     // 3. 上傳新 GPX 檔案名至雲端
     async function uploadGpx() {
