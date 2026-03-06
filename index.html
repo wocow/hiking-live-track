@@ -3,69 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>登山留守監控儀表板 - 完整回歸版</title>
-
+    <title>登山留守監控儀表板</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
     <style>
         body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #000; }
         #map { height: 100vh; width: 100%; }
-
-        /* 右上角整合面板 */
         .info-panel {
             position: absolute; top: 10px; right: 10px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 12px; border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            width: 210px; backdrop-filter: blur(6px);
+            background: rgba(255, 255, 255, 0.9); padding: 12px; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 210px; backdrop-filter: blur(6px);
         }
-
         h4 { margin: 0 0 8px 0; color: #333; font-size: 15px; display: flex; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; margin-right: 8px; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-
-        /* 資訊列樣式 */
         .info-row { font-size: 13px; color: #444; margin-bottom: 5px; line-height: 1.4; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 2px; }
         .data-val { font-weight: bold; color: #000; }
         .msg-box { color: #d32f2f; font-weight: bold; word-break: break-all; }
-
-        /* 操作按鈕 */
         .action-bar { display: flex; gap: 6px; margin-top: 10px; }
         .btn-sm { flex: 1; padding: 10px 4px; font-size: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; border: none; }
         .btn-primary { background: #0078ff; color: white; }
         .btn-outline { background: #fff; color: #555; border: 1px solid #ccc; }
-
-        /* 摺疊選單 */
         .settings-content { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #bbb; }
-        .settings-content.active { display: block; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* 選單內的選項樣式 */
+        .settings-content.active { display: block; }
         .setting-item { margin-bottom: 8px; font-size: 12px; color: #333; }
         select { width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ccc; margin-top: 3px; }
-        .toggle-row { display: flex; align-items: center; margin-bottom: 5px; cursor: pointer; }
-        .toggle-row input { margin-right: 8px; width: 16px; height: 16px; }
-
-        /* 地圖標記 */
+        .toggle-row { display: flex; align-items: center; margin-bottom: 5px; cursor: pointer; font-size: 12px; }
         .number-icon { background-color: #ff4400; border: 2px solid white; border-radius: 50%; color: white; text-align: center; line-height: 20px; font-size: 10px; }
         .custom-pin { width: 24px; height: 24px; border-radius: 50% 50% 50% 0; background: #e61e1e; position: absolute; transform: rotate(-45deg); left: 50%; top: 50%; margin: -24px 0 0 -12px; border: 2px solid #fff; }
-
-        @media (max-width: 480px) { .info-panel { width: 190px; } }
     </style>
 </head>
 <body>
 
 <div class="info-panel">
-    <h4><span class="status-dot"></span>留守監控 (<span id="gpx-name-display">同步中...</span>)</h4>
-    
+    <h4><span class="status-dot"></span>留守監控 (<span id="gpx-name-display">同步中</span>)</h4>
     <div class="info-row">最後：<span class="data-val" id="last-time">載入中...</span></div>
     <div class="info-row">座標：<span class="data-val" id="last-coord">-</span></div>
     <div class="info-row">訊息：<span class="msg-box" id="last-msg">無</span></div>
     <div class="action-bar">
         <button class="btn-sm btn-primary" onclick="zoomToCurrent()">追蹤位置</button>
-        <button class="btn-sm btn-outline" id="toggle-btn" onclick="toggleSettings()">地圖設定 ▾</button>
+        <button class="btn-sm btn-outline" onclick="toggleSettings()" id="toggle-btn">地圖設定 ▾</button>
     </div>
-
     <div id="settings-menu" class="settings-content">
         <div class="setting-item">
             <label>選擇底圖：</label>
@@ -76,11 +53,8 @@
                 <option value="osm">OSM 街道圖</option>
             </select>
         </div>
-
         <label class="toggle-row"><input type="checkbox" checked onchange="toggleLayer('gpx', this.checked)"> 預計路線 (GPX)</label>
         <label class="toggle-row"><input type="checkbox" checked onchange="toggleLayer('history', this.checked)"> 回報點位紀錄</label>
-        <label class="toggle-row"><input type="checkbox" checked onchange="toggleLayer('line', this.checked)"> 回報路徑連線</label>
-        
         <button class="btn-sm btn-outline" style="width:100%; margin-top:5px;" onclick="location.reload()">重新整理</button>
     </div>
 </div>
@@ -94,7 +68,6 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxhEOvYjimYgpZYpa1tts8et_IuQlc2Agx4Rco1KQqtt4Z7rsENNOTYkMrLPKHMh0nv4A/exec';
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1MrdXtkY7rISADs_7Wgsde5LNWN9OWVIzNKSi92auyKU/export?format=csv"; 
 
-// 1. 地圖初始化
 const layers = {
     rudy: L.tileLayer('https://tile.happyman.idv.tw/map/rudy/{z}/{x}/{y}.png', { attribution: '魯地圖' }),
     nlsc: L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', { maxZoom: 18 }),
@@ -105,6 +78,10 @@ const layers = {
 const map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
 layers.rudy.addTo(map);
 
+// 關鍵：建立一個專門給路線用的底層 pane
+map.createPane('routePane');
+map.getPane('routePane').style.zIndex = 199; // 確保在底圖文字下方
+
 const gpxLayer = L.layerGroup().addTo(map);
 const historyMarkers = L.layerGroup().addTo(map);
 const historyLine = L.polyline([], { color: '#ff4400', weight: 3, dashArray: '5, 8', opacity: 0.6 }).addTo(map);
@@ -112,7 +89,6 @@ const historyLine = L.polyline([], { color: '#ff4400', weight: 3, dashArray: '5,
 let currentGpxName = ""; 
 let lastPos = [0, 0];
 
-// 2. 選單與圖層控制
 function toggleSettings() {
     const menu = document.getElementById('settings-menu');
     const isActive = menu.classList.toggle('active');
@@ -127,17 +103,13 @@ function changeBaseLayer(key) {
 function toggleLayer(type, isShow) {
     if (type === 'gpx') isShow ? map.addLayer(gpxLayer) : map.removeLayer(gpxLayer);
     if (type === 'history') isShow ? map.addLayer(historyMarkers) : map.removeLayer(historyMarkers);
-    if (type === 'line') isShow ? map.addLayer(historyLine) : map.removeLayer(historyLine);
 }
 
-// 3. 雲端同步 GPX
 async function syncGpx() {
     try {
         const res = await fetch(GAS_URL + "?cb=" + Date.now());
         const data = await res.json();
-        if (data.selectedGPX && data.selectedGPX !== currentGpxName) {
-            loadGPX(data.selectedGPX);
-        }
+        if (data.selectedGPX && data.selectedGPX !== currentGpxName) { loadGPX(data.selectedGPX); }
     } catch (e) { console.error("GPX同步失敗"); }
 }
 
@@ -146,18 +118,19 @@ function loadGPX(file) {
     new L.GPX(file, {
         async: true,
         marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null, wptIconUrls: { '': null } },
-        polyline_options: { color: '#FF1493', weight: 5, opacity: 0.7 }
+        polyline_options: { 
+            color: '#FF1493', weight: 5, opacity: 0.7,
+            pane: 'routePane' // 將 GPX 路線放在文字下方
+        }
     })
     .on('loaded', e => {
         map.fitBounds(e.target.getBounds());
         currentGpxName = file;
-        // 更新標題括號內的名稱
         document.getElementById('gpx-name-display').innerText = file.replace('.gpx', '');
     })
     .addTo(gpxLayer);
 }
 
-// 4. 座標與訊息處理
 async function fetchLatest() {
     try {
         const res = await fetch(SHEET_CSV_URL + "&cb=" + Date.now());
@@ -170,34 +143,24 @@ async function fetchLatest() {
 
         rows.forEach((row, idx) => {
             const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-            const rawTime = cols[0], lat = parseFloat(cols[1]), lng = parseFloat(cols[2]), msg = (cols[3] || "無").replace(/"/g, "");
+            const timeStr = cols[0], lat = parseFloat(cols[1]), lng = parseFloat(cols[2]), msg = (cols[3] || "無").replace(/"/g, "");
 
             if (!isNaN(lat) && !isNaN(lng)) {
                 const pos = [lat, lng];
                 latlngs.push(pos);
                 const isLatest = (idx === rows.length - 1);
-
                 L.marker(pos, {
                     icon: L.divIcon({
                         className: isLatest ? '' : 'number-icon',
                         html: isLatest ? '<div class="custom-pin"></div>' : (idx + 1),
                         iconSize: [24, 24], iconAnchor: [12, 24]
                     })
-                }).addTo(historyMarkers).bindPopup(`時間: ${rawTime}<br>訊息: ${msg}`);
+                }).addTo(historyMarkers).bindPopup(`時間: ${timeStr}<br>訊息: ${msg}`);
 
                 if (isLatest) {
                     lastPos = pos;
-                    
-                    // 2. 時間格式修改：從 "2026/03/07 07:35:00" 轉為 "3/7 07:35"
-                    try {
-                        const dateObj = new Date(rawTime);
-                        const formattedTime = `${dateObj.getMonth() + 1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
-                        document.getElementById('last-time').innerText = formattedTime;
-                    } catch(e) {
-                        // 若轉換失敗則回退到原始截取方式
-                        document.getElementById('last-time').innerText = rawTime.split(' ')[1].substring(0,5);
-                    }
-
+                    const d = new Date(timeStr);
+                    document.getElementById('last-time').innerText = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
                     document.getElementById('last-coord').innerText = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
                     document.getElementById('last-msg').innerText = msg;
                 }
@@ -209,7 +172,6 @@ async function fetchLatest() {
 
 function zoomToCurrent() { if (lastPos[0] !== 0) map.setView(lastPos, 16); }
 
-// 初始化與循環更新
 setInterval(() => { syncGpx(); fetchLatest(); }, 60000);
 syncGpx(); fetchLatest();
 </script>
