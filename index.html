@@ -56,13 +56,11 @@
 <body>
 
 <div class="info-panel">
-    <h4><span class="status-dot"></span>留守監控</h4>
+    <h4><span class="status-dot"></span>留守監控 (<span id="gpx-name-display">同步中...</span>)</h4>
     
     <div class="info-row">最後：<span class="data-val" id="last-time">載入中...</span></div>
     <div class="info-row">座標：<span class="data-val" id="last-coord">-</span></div>
     <div class="info-row">訊息：<span class="msg-box" id="last-msg">無</span></div>
-    <div class="info-row">路線：<span class="data-val" id="gpx-name-display">同步中...</span></div>
-
     <div class="action-bar">
         <button class="btn-sm btn-primary" onclick="zoomToCurrent()">追蹤位置</button>
         <button class="btn-sm btn-outline" id="toggle-btn" onclick="toggleSettings()">地圖設定 ▾</button>
@@ -153,6 +151,7 @@ function loadGPX(file) {
     .on('loaded', e => {
         map.fitBounds(e.target.getBounds());
         currentGpxName = file;
+        // 更新標題括號內的名稱
         document.getElementById('gpx-name-display').innerText = file.replace('.gpx', '');
     })
     .addTo(gpxLayer);
@@ -171,7 +170,7 @@ async function fetchLatest() {
 
         rows.forEach((row, idx) => {
             const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-            const time = cols[0], lat = parseFloat(cols[1]), lng = parseFloat(cols[2]), msg = (cols[3] || "無").replace(/"/g, "");
+            const rawTime = cols[0], lat = parseFloat(cols[1]), lng = parseFloat(cols[2]), msg = (cols[3] || "無").replace(/"/g, "");
 
             if (!isNaN(lat) && !isNaN(lng)) {
                 const pos = [lat, lng];
@@ -184,11 +183,21 @@ async function fetchLatest() {
                         html: isLatest ? '<div class="custom-pin"></div>' : (idx + 1),
                         iconSize: [24, 24], iconAnchor: [12, 24]
                     })
-                }).addTo(historyMarkers).bindPopup(`時間: ${time}<br>訊息: ${msg}`);
+                }).addTo(historyMarkers).bindPopup(`時間: ${rawTime}<br>訊息: ${msg}`);
 
                 if (isLatest) {
                     lastPos = pos;
-                    document.getElementById('last-time').innerText = time.split(' ')[1].substring(0,5);
+                    
+                    // 2. 時間格式修改：從 "2026/03/07 07:35:00" 轉為 "3/7 07:35"
+                    try {
+                        const dateObj = new Date(rawTime);
+                        const formattedTime = `${dateObj.getMonth() + 1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+                        document.getElementById('last-time').innerText = formattedTime;
+                    } catch(e) {
+                        // 若轉換失敗則回退到原始截取方式
+                        document.getElementById('last-time').innerText = rawTime.split(' ')[1].substring(0,5);
+                    }
+
                     document.getElementById('last-coord').innerText = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
                     document.getElementById('last-msg').innerText = msg;
                 }
