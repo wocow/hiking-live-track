@@ -119,7 +119,7 @@ async function syncGpx() {
 
 function loadGPX(file) {
     gpxLayer.clearLayers();
-    elevationControl.clear(); // 清空舊圖表
+    elevationControl.clear();
 
     const gpx = new L.GPX(file, {
         async: true,
@@ -127,17 +127,26 @@ function loadGPX(file) {
         polyline_options: { color: '#FF1493', weight: 5, opacity: 0.7 }
     });
 
+    gpx.on('addline', function(e) {
+        // 確保每一段線段的海拔數據都被加入圖表
+        elevationControl.addData(e.line);
+    });
+
     gpx.on('loaded', e => {
         map.fitBounds(e.target.getBounds());
         currentGpxName = file;
         document.getElementById('gpx-name-display').innerText = file.replace('.gpx', '');
         
-        // 重要：將 GPX 數據加入圖表
-        elevationControl.addData(e.target);
+        // 如果 addline 沒觸發，這裡補上一補
+        if (elevationControl._data.length === 0) {
+            elevationControl.addData(e.target);
+        }
     });
 
     gpx.addTo(gpxLayer);
 }
+    
+
 
 // 4. 座標與訊息處理 (與之前版本相同)
 async function fetchLatest() {
