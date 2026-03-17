@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>登山留守監控儀表板 - 極簡圖表版</title>
+    <title>登山留守監控儀表板 - 滿版圖表版</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/@raruto/leaflet-elevation/dist/leaflet-elevation.min.css" />
@@ -11,6 +11,7 @@
     <style>
         body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #000; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
+        /* 比例分配：地圖 8 份，圖表 2 份 */
         #map { flex: 8; width: 100%; position: relative; }
 
         #elevation-chart { 
@@ -20,10 +21,15 @@
             min-height: 120px; 
             border-top: 2px solid #ddd; 
             position: relative;
+            overflow: hidden; /* 防止內容溢出 */
         }
 
-        /* 確保圖例徹底隱藏 */
+        /* 移除底部的 Legend 空間與強制 SVG 貼底 */
         .elevation-control .legend { display: none !important; }
+        .elevation-control.elevation-detached svg {
+            display: block;
+            margin-bottom: -5px; /* 強迫繪圖區更貼近底部 */
+        }
 
         .info-panel {
             position: absolute; top: 10px; right: 10px; z-index: 1000;
@@ -98,21 +104,22 @@ const layers = {
 const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([23.5, 121], 7);
 layers.rudy.addTo(map);
 
-// 關鍵修改：加入 legend: false 並微調 margins
+// 優化核心：forceAxisBounds + 極小化 bottom margin
 const elevationControl = L.control.elevation({
     theme: "steelblue-theme", 
     detached: true,
     elevationDiv: "#elevation-chart",
-    height: 120, 
+    height: 150, // 增加高度值，讓繪圖主體填滿容器
     autohide: false,
     collapsed: false,
     position: "bottomleft",
     summary: false, 
-    legend: false, // 取消 Altitude 圖示
+    legend: false,
     followMarker: true,
     marker: "circle",
     snapToData: true,
-    margins: { top: 10, right: 25, bottom: 25, left: 45 } 
+    forceAxisBounds: true, // 座標軸緊貼海拔極值，消除上下空白
+    margins: { top: 5, right: 25, bottom: 10, left: 45 } // 底部壓低至 10，僅供顯示公里數字
 }).addTo(map);
 
 const gpxLayer = L.layerGroup().addTo(map);
