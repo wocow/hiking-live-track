@@ -11,9 +11,19 @@
     <style>
         body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #000; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* 比例分配：地圖 65%，圖表 35% */
-        #map { flex: 6.5; width: 100%; position: relative; }
-        #elevation-chart { flex: 3.5; background: #f8f9fa; min-height: 180px; border-top: 2px solid #ddd; }
+        /* 比例分配：地圖 82.5%，圖表 17.5% (由原先 35% 減半) */
+        #map { 
+            flex: 8.25; 
+            width: 100%; 
+            position: relative; 
+        }
+
+        #elevation-chart { 
+            flex: 1.75; 
+            background: #f8f9fa; 
+            min-height: 90px; /* 同步調降最小高度以維持比例 */
+            border-top: 2px solid #ddd; 
+        }
 
         /* 右上角資訊面板 */
         .info-panel {
@@ -97,7 +107,7 @@ layers.rudy.addTo(map);
 
 // 2. 高度圖表控制項初始化
 const elevationControl = L.control.elevation({
-    theme: "steelblue-theme", // 其他主題: deeppurple-theme, lime-theme
+    theme: "steelblue-theme", 
     detached: true,
     elevationDiv: "#elevation-chart",
     autohide: false,
@@ -128,30 +138,22 @@ async function syncGpx() {
 }
 
 function loadGPX(file) {
-    // 1. 先清理舊數據
     gpxLayer.clearLayers();
     if (elevationControl) {
         elevationControl.clear();
     }
 
-    // 2. 建立新的 GPX 物件
     const gpx = new L.GPX(file, {
         async: true,
         marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null },
         polyline_options: { color: '#FF1493', weight: 5, opacity: 0.8 }
     });
 
-    // 3. 監聽加載完成事件
     gpx.on('loaded', e => {
-        // A. 縮放地圖到範圍
         map.fitBounds(e.target.getBounds());
-        
-        // B. 更新標題
         currentGpxName = file;
         document.getElementById('gpx-name-display').innerText = file.replace('.gpx', '').substring(0,6);
         
-        // C. 強制將數據注入高度圖表
-        // 有時候直接丟 e.target 會失敗，改丟 layer 本身
         const track = e.target.getLayers()[0]; 
         if (track) {
             elevationControl.addData(track);
@@ -160,13 +162,13 @@ function loadGPX(file) {
         }
     });
 
-    // 4. 錯誤處理
     gpx.on('error', e => {
         console.error("GPX 加載出錯:", e);
     });
 
     gpx.addTo(gpxLayer);
 }
+
 // 4. 定時獲取 Google Sheet 回報位置
 async function fetchLatest() {
     try {
@@ -190,7 +192,6 @@ async function fetchLatest() {
                 latlngs.push(pos);
                 const isLatest = (idx === rows.length - 1);
 
-                // 在地圖上標記
                 L.marker(pos, {
                     icon: L.divIcon({
                         className: isLatest ? '' : 'number-icon',
@@ -203,7 +204,6 @@ async function fetchLatest() {
                     lastPos = pos;
                     updateUI(rawTime, lat, lng, msg);
 
-                    // 重要：在高度圖表上標記點位
                     setTimeout(() => {
                         if (elevationControl && elevationControl._data && elevationControl._data.length > 0) {
                             elevationControl.locate(L.latLng(lat, lng));
