@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>登山留守監控儀表板 - 優化版</title>
+    <title>登山留守監控儀表板 - 極簡圖表版</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/@raruto/leaflet-elevation/dist/leaflet-elevation.min.css" />
@@ -11,17 +11,19 @@
     <style>
         body { margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #000; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* 重新分配比例：地圖 80%，圖表 20% */
         #map { flex: 8; width: 100%; position: relative; }
 
         #elevation-chart { 
             flex: 2; 
             background: #f8f9fa; 
-            height: 20vh; /* 使用螢幕比例確保空間 */
-            min-height: 130px; /* 給予足夠高度顯示軸線標籤 */
+            height: 20vh; 
+            min-height: 120px; 
             border-top: 2px solid #ddd; 
             position: relative;
         }
+
+        /* 確保圖例徹底隱藏 */
+        .elevation-control .legend { display: none !important; }
 
         .info-panel {
             position: absolute; top: 10px; right: 10px; z-index: 1000;
@@ -96,20 +98,21 @@ const layers = {
 const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([23.5, 121], 7);
 layers.rudy.addTo(map);
 
-// 修正：增加 height 參數並關閉 summary
+// 關鍵修改：加入 legend: false 並微調 margins
 const elevationControl = L.control.elevation({
     theme: "steelblue-theme", 
     detached: true,
     elevationDiv: "#elevation-chart",
-    height: 110, // 指定繪製高度
+    height: 120, 
     autohide: false,
     collapsed: false,
     position: "bottomleft",
-    summary: false, // 關閉數據總結，騰出空間給下半部標籤
+    summary: false, 
+    legend: false, // 取消 Altitude 圖示
     followMarker: true,
     marker: "circle",
     snapToData: true,
-    margins: { top: 10, right: 20, bottom: 30, left: 50 } // 手動微調邊距
+    margins: { top: 10, right: 25, bottom: 25, left: 45 } 
 }).addTo(map);
 
 const gpxLayer = L.layerGroup().addTo(map);
@@ -151,7 +154,6 @@ function loadGPX(file) {
             elevationControl.addData(e.target);
         }
         
-        // 修正：強制觸發視窗 resize 讓圖表重繪適應新高度
         setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 500);
     });
 
